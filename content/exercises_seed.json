@@ -1,0 +1,61 @@
+{
+  "catalogVersion": 1,
+  "contentStatus": "placeholder",
+  "notice": "当前仅保留六艺十式结构与开发预览节奏，不包含书籍受保护原文、标准图片或最终节奏参数。",
+  "cadenceProfiles": [
+    {
+      "id": "preview_default",
+      "label": "开发预览节奏",
+      "eccentricSeconds": 2,
+      "bottomPauseSeconds": 1,
+      "concentricSeconds": 2,
+      "topPauseSeconds": 1,
+      "source": "仅用于原型开发，非最终内容"
+    }
+  ],
+  "families": [
+    {
+      "id": "pushup",
+      "titleZh": "俯卧撑",
+      "titleEn": "Pushup",
+      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "cadenceProfileId": "preview_default"
+    },
+    {
+      "id": "squat",
+      "titleZh": "深蹲",
+      "titleEn": "Squat",
+      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "cadenceProfileId": "preview_default"
+    },
+    {
+      "id": "pullup",
+      "titleZh": "引体",
+      "titleEn": "Pullup",
+      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "cadenceProfileId": "preview_default"
+    },
+    {
+      "id": "leg_raise",
+      "titleZh": "举腿",
+      "titleEn": "Leg Raise",
+      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "cadenceProfileId": "preview_default"
+    },
+    {
+      "id": "bridge",
+      "titleZh": "桥",
+      "titleEn": "Bridge",
+      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "cadenceProfileId": "preview_default"
+    },
+    {
+      "id": "handstand_pushup",
+      "titleZh": "倒立撑",
+      "titleEn": "Handstand Pushup",
+      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "cadenceProfileId": "preview_default"
+    }
+  ]
+}
+

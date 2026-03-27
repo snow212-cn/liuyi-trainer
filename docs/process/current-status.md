@@ -33,8 +33,13 @@
   - `gradlew.bat`
   - `gradle/wrapper/gradle-wrapper.jar`
 - GitHub Actions 远程调试版 APK 构建流程已建立
+- GitHub Actions 已切到更省时的调试模式：
+  - 仅手动触发
+  - 自动取消同分支旧任务
+  - 启用 Gradle 缓存
 - 已修正一个真实编译阻塞点：`Room.databaseBuilder(...)` 命名参数错误
 - 已修正第一次云端构建暴露的问题：移除 AGP 9 不支持的 `android.kotlinOptions{}`
+- 已修正第二次云端构建暴露的问题：XML 主题不应引用未引入依赖提供的 `Theme.Material3.DayNight.NoActionBar`
 - 已按 AGP 9 要求移除 `org.jetbrains.kotlin.android`，并改用 `com.android.legacy-kapt`
 
 ## 3. 当前仍未完成的内容
@@ -45,7 +50,7 @@
 - Room 所需的构建链路还未经过真实编译校验
 - 动作标准正式内容、示意图、音频素材尚未接入
 - 历史记录页还可以继续细化为更完整的详情展示
-- GitHub 远程构建已运行过一次，但还没重新验证修复后的结果
+- GitHub 远程构建已多次运行，但还没重新验证本轮主题修复后的结果
 
 ## 4. 当前代码定性
 

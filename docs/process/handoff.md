@@ -50,6 +50,7 @@
 - 仓库已补齐 Gradle Wrapper 文件，但尚未完成首次 Android 构建
 - GitHub Actions 远程构建工作流已建立
 - 第一次云端构建已暴露并修复一个 Gradle DSL 问题：`android.kotlinOptions{}`
+- 第二次云端构建已暴露并修复一个资源主题问题：`Theme.Material3.DayNight.NoActionBar`
 - 已按 AGP 9 迁移构建插件，移除 `org.jetbrains.kotlin.android`
 
 ## 当前未完成事项
@@ -61,7 +62,7 @@
 - Room 构建链路还未实际编译验证
 - 动作标准正式文字与图片内容尚未导入
 - 历史记录页仍可继续细化展示
-- GitHub 远程构建需要重新跑一遍，验证本轮修复
+- GitHub 远程构建需要重新跑一遍，验证本轮主题修复
 
 ## 当前官方下一步
 

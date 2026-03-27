@@ -49,6 +49,7 @@
 - 历史记录页已显示每次训练的分组明细
 - 仓库已补齐 Gradle Wrapper 文件，但尚未完成首次 Android 构建
 - GitHub Actions 远程构建工作流已建立
+- 已按 AGP 9 迁移构建插件，移除 `org.jetbrains.kotlin.android`
 
 ## 当前未完成事项
 

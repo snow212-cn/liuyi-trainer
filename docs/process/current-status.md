@@ -34,6 +34,7 @@
   - `gradle/wrapper/gradle-wrapper.jar`
 - GitHub Actions 远程调试版 APK 构建流程已建立
 - 已修正一个真实编译阻塞点：`Room.databaseBuilder(...)` 命名参数错误
+- 已按 AGP 9 要求移除 `org.jetbrains.kotlin.android`，并改用 `com.android.legacy-kapt`
 
 ## 3. 当前仍未完成的内容
 

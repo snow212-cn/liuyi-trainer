@@ -34,7 +34,7 @@
   - `gradle/wrapper/gradle-wrapper.jar`
 - GitHub Actions 远程调试版 APK 构建流程已建立
 - GitHub Actions 已切到更省时的调试模式：
-  - 仅手动触发
+  - 保持原有 `on:` 条件不变
   - 自动取消同分支旧任务
   - 启用 Gradle 缓存
 - 已修正一个真实编译阻塞点：`Room.databaseBuilder(...)` 命名参数错误

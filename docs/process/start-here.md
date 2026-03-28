@@ -6,6 +6,10 @@
 
 你现在打开的就是最适合非技术用户阅读的说明。
 
+如果你想系统学习“写这个项目需要哪些基础知识”，接着看：
+
+`docs/learning/project-foundations-textbook.md`
+
 ## 2. 再打开本地演示
 
 双击项目根目录里的 `OPEN_DEMO.bat`。

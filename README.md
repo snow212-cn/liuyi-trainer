@@ -43,6 +43,7 @@
 - `docs/product/srs.md`：需求规格说明
 - `docs/architecture/architecture.md`：架构说明
 - `docs/architecture/data-model.md`：数据模型与计次规则
+- `docs/learning/project-foundations-textbook.md`：新手教材，系统讲解写这个项目要用到的基础知识
 - `docs/roadmap/milestones.md`：迭代计划
 - `docs/process/working-rhythm.md`：长期协作方式
 - `docs/process/testing-strategy.md`：测试与验证策略
@@ -70,3 +71,4 @@
 - `OPEN_DEMO.bat`
 - `prototype/index.html`
 - `docs/process/start-here.md`
+- `docs/learning/project-foundations-textbook.md`

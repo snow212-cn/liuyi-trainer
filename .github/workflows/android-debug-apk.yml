@@ -6,7 +6,21 @@ on:
     branches:
       - main
       - master
+    paths:
+      - ".github/workflows/android-debug-apk.yml"
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
   pull_request:
+    paths:
+      - ".github/workflows/android-debug-apk.yml"
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -1,8 +1,6 @@
 package com.liuyi.trainer.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -21,7 +20,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,32 +50,53 @@ fun HomeScreen(
     Surface(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                HeroCard(
-                    title = "六艺训练台",
-                    description = "当前 Android 实现以训练执行流为核心：首页负责选艺、选式、休息时长设置与进入训练，训练页再按一级/二级/三级信息层级展开。",
-                )
-            }
-
-            item {
-                SelectedExerciseCard(
+                CompactHeaderCard(
                     family = selectedFamily,
                     step = selectedStep,
                     restPresetSeconds = restPresetSeconds,
                     cadenceLabel = previewCadenceLabel,
                     cadenceSeconds = previewCadenceSeconds,
                     onStartTraining = onStartTraining,
+                    onOpenStandards = onOpenStandards,
                     onOpenSummary = onOpenSummary,
                     onOpenHistory = onOpenHistory,
-                    onOpenStandards = onOpenStandards,
                 )
             }
 
             item {
-                SectionTitle(title = "选择式")
+                SectionTitle("六艺")
+            }
+
+            items(
+                items = families.chunked(2),
+                key = { row -> row.joinToString(separator = "-") { it.id } },
+            ) { rowFamilies ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    rowFamilies.forEach { family ->
+                        ChoiceCard(
+                            modifier = Modifier.weight(1f),
+                            title = family.titleZh,
+                            subtitle = family.titleEn,
+                            meta = if (family.id == selectedFamily.id) "当前" else "点击选择",
+                            selected = family.id == selectedFamily.id,
+                            onClick = { onSelectFamily(family.id) },
+                        )
+                    }
+                    repeat(2 - rowFamilies.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+
+            item {
+                SectionTitle("十式")
             }
 
             item {
@@ -89,7 +108,7 @@ fun HomeScreen(
             }
 
             item {
-                SectionTitle(title = "组间休息")
+                SectionTitle("组间休息")
             }
 
             item {
@@ -99,29 +118,21 @@ fun HomeScreen(
                     onSelectRestPreset = onSelectRestPreset,
                 )
             }
-
-            item {
-                SectionTitle(title = "六艺总览")
-            }
-
-            items(
-                items = families,
-                key = { it.id },
-            ) { family ->
-                FamilyCard(
-                    family = family,
-                    isSelected = family.id == selectedFamily.id,
-                    onSelect = { onSelectFamily(family.id) },
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun HeroCard(
-    title: String,
-    description: String,
+private fun CompactHeaderCard(
+    family: MovementFamily,
+    step: MovementStep,
+    restPresetSeconds: Int,
+    cadenceLabel: String,
+    cadenceSeconds: Long,
+    onStartTraining: () -> Unit,
+    onOpenStandards: () -> Unit,
+    onOpenSummary: () -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -131,93 +142,21 @@ private fun HeroCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = title,
+                text = "六艺十式",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "${family.titleZh} · ${step.label}",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = description,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SelectedExerciseCard(
-    family: MovementFamily,
-    step: MovementStep,
-    restPresetSeconds: Int,
-    cadenceLabel: String,
-    cadenceSeconds: Long,
-    onStartTraining: () -> Unit,
-    onOpenSummary: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenStandards: () -> Unit,
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                text = "当前练习入口",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = family.titleZh,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "${family.titleEn} · ${step.label}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.large,
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Text(
-                        text = "${family.steps.size} 式",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-
-            Text(
-                text = family.summary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Text(
-                text = "预设节奏：$cadenceLabel，每完整循环 ${cadenceSeconds} 秒；当前默认组间休息 ${restPresetSeconds} 秒。",
+                text = "节奏 $cadenceLabel · 每次循环 ${cadenceSeconds} 秒 · 休息 ${restPresetSeconds} 秒",
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -239,19 +178,67 @@ private fun SelectedExerciseCard(
                 }
             }
 
-            OutlinedButton(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenSummary,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("查看当前训练总结")
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onOpenSummary,
+                ) {
+                    Text("当前总结")
+                }
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onOpenHistory,
+                ) {
+                    Text("训练历史")
+                }
             }
+        }
+    }
+}
 
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenHistory,
-            ) {
-                Text("查看训练历史")
-            }
+@Composable
+private fun ChoiceCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    meta: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = meta,
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }
@@ -266,31 +253,34 @@ private fun RestPresetSelector(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                restPresetOptions.forEach { seconds ->
-                    val selected = seconds == selectedRestPresetSeconds
-                    if (selected) {
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onSelectRestPreset(seconds) },
-                            contentPadding = PaddingValues(vertical = 10.dp),
-                        ) {
-                            Text(text = "${seconds}s")
+            restPresetOptions.chunked(3).forEach { rowOptions ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    rowOptions.forEach { seconds ->
+                        val selected = seconds == selectedRestPresetSeconds
+                        if (selected) {
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                onClick = { onSelectRestPreset(seconds) },
+                            ) {
+                                Text("${seconds}s")
+                            }
+                        } else {
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { onSelectRestPreset(seconds) },
+                            ) {
+                                Text("${seconds}s")
+                            }
                         }
-                    } else {
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onSelectRestPreset(seconds) },
-                            contentPadding = PaddingValues(vertical = 10.dp),
-                        ) {
-                            Text(text = "${seconds}s")
-                        }
+                    }
+                    repeat(3 - rowOptions.size) {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -308,8 +298,8 @@ private fun StepSelector(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             steps.chunked(5).forEach { rowSteps ->
                 Row(
@@ -322,22 +312,17 @@ private fun StepSelector(
                             Button(
                                 modifier = Modifier.weight(1f),
                                 onClick = { onSelectStep(step.level) },
-                                contentPadding = PaddingValues(vertical = 10.dp),
                             ) {
-                                Text(text = step.label)
+                                Text(step.level.toString())
                             }
                         } else {
                             OutlinedButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = { onSelectStep(step.level) },
-                                contentPadding = PaddingValues(vertical = 10.dp),
                             ) {
-                                Text(text = step.label)
+                                Text(step.level.toString())
                             }
                         }
-                    }
-                    repeat(5 - rowSteps.size) {
-                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -349,78 +334,8 @@ private fun StepSelector(
 private fun SectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleLarge,
+        style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(horizontal = 4.dp),
     )
-}
-
-@Composable
-private fun FamilyCard(
-    family: MovementFamily,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
-) {
-    val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = family.titleZh,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = family.titleEn,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = if (isSelected) "当前选择" else "可切换",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Text(
-                text = family.summary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Text(
-                text = "训练节奏源：${family.previewCadence.source}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (!isSelected) {
-                FilledTonalButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onSelect,
-                ) {
-                    Text("切换到这一艺")
-                }
-            }
-        }
-    }
 }

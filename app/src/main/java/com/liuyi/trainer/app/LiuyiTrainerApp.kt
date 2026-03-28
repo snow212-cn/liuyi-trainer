@@ -9,15 +9,19 @@ import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.TrainingSessionState
 import com.liuyi.trainer.ui.HomeScreen
 import com.liuyi.trainer.ui.StandardsScreen
+import com.liuyi.trainer.ui.TrainingHistoryDetailScreen
 import com.liuyi.trainer.ui.TrainingHistoryScreen
+import com.liuyi.trainer.ui.TrainingReadyScreen
 import com.liuyi.trainer.ui.TrainingRestScreen
 import com.liuyi.trainer.ui.TrainingRunningScreen
 import com.liuyi.trainer.ui.TrainingSummaryScreen
+import com.liuyi.trainer.ui.buildHistoryDetailPreview
 import com.liuyi.trainer.ui.buildHistoryPreview
 import com.liuyi.trainer.ui.buildRestPreview
 import com.liuyi.trainer.ui.buildRunningPreview
 import com.liuyi.trainer.ui.buildStandardsPreview
 import com.liuyi.trainer.ui.buildSummaryPreview
+import com.liuyi.trainer.ui.buildTrainingEntryPreview
 
 private object Routes {
     const val Home = "home"
@@ -25,6 +29,7 @@ private object Routes {
     const val Rest = "rest"
     const val Summary = "summary"
     const val History = "history"
+    const val HistoryDetail = "history_detail"
     const val Standards = "standards"
 }
 
@@ -52,7 +57,6 @@ fun LiuyiTrainerApp(
                 onSelectStep = appViewModel::selectStep,
                 onSelectRestPreset = appViewModel::selectRestPreset,
                 onStartTraining = {
-                    appViewModel.beginTraining()
                     navController.navigate(Routes.Training)
                 },
                 onOpenSummary = {
@@ -76,6 +80,8 @@ fun LiuyiTrainerApp(
                         state = currentState,
                         nowUtc = appViewModel.nowUtc,
                     ),
+                    speechEnabled = appViewModel.speechEnabled,
+                    onToggleSpeech = appViewModel::setSpeechEnabled,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -86,6 +92,31 @@ fun LiuyiTrainerApp(
                     onCompleteTraining = {
                         appViewModel.completeTraining()
                         navController.navigate(Routes.Summary)
+                    },
+                )
+            } else {
+                TrainingReadyScreen(
+                    preview = buildTrainingEntryPreview(
+                        context = appViewModel.selectedContext,
+                        restPresetSeconds = appViewModel.restPresetSeconds,
+                        cadenceLabel = ExerciseCatalog.previewCadence.label,
+                        cadenceSeconds = ExerciseCatalog.previewCadence.cycleDurationMs / 1000,
+                    ),
+                    speechEnabled = appViewModel.speechEnabled,
+                    onToggleSpeech = appViewModel::setSpeechEnabled,
+                    onBack = {
+                        navController.popBackStack(Routes.Home, false)
+                    },
+                    onStartSet = {
+                        appViewModel.beginTraining()
+                        navController.navigate(Routes.Training) {
+                            popUpTo(Routes.Training) {
+                                inclusive = true
+                            }
+                        }
+                    },
+                    onOpenStandards = {
+                        navController.navigate(Routes.Standards)
                     },
                 )
             }
@@ -127,6 +158,8 @@ fun LiuyiTrainerApp(
                     context = activeContext,
                     state = appViewModel.sessionState,
                     nowUtc = appViewModel.nowUtc,
+                    repDrafts = appViewModel.summaryRepDrafts,
+                    isSaved = appViewModel.summarySaved,
                 ),
                 onBack = {
                     navController.popBackStack()
@@ -134,15 +167,33 @@ fun LiuyiTrainerApp(
                 onBackHome = {
                     navController.popBackStack(Routes.Home, false)
                 },
-                onOpenStandards = {
-                    navController.navigate(Routes.Standards)
+                onOpenHistory = {
+                    navController.navigate(Routes.History)
                 },
+                onUpdateRep = appViewModel::updateSummaryRep,
+                onSave = appViewModel::saveCompletedTraining,
             )
         }
 
         composable(Routes.History) {
             TrainingHistoryScreen(
                 preview = buildHistoryPreview(appViewModel.recentSessions),
+                onBack = {
+                    navController.popBackStack()
+                },
+                onBackHome = {
+                    navController.popBackStack(Routes.Home, false)
+                },
+                onOpenDetail = { sessionId ->
+                    appViewModel.selectHistorySession(sessionId)
+                    navController.navigate(Routes.HistoryDetail)
+                },
+            )
+        }
+
+        composable(Routes.HistoryDetail) {
+            TrainingHistoryDetailScreen(
+                preview = buildHistoryDetailPreview(appViewModel.selectedHistorySession),
                 onBack = {
                     navController.popBackStack()
                 },
@@ -162,7 +213,6 @@ fun LiuyiTrainerApp(
                     navController.popBackStack(Routes.Home, false)
                 },
                 onOpenTraining = {
-                    appViewModel.beginTraining()
                     navController.navigate(Routes.Training)
                 },
             )

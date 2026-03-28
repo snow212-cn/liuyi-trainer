@@ -3,6 +3,7 @@ package com.liuyi.trainer.app
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -51,12 +52,27 @@ class LiuyiTrainerViewModel(
     var recentSessions by mutableStateOf<List<TrainingSessionWithSets>>(emptyList())
         private set
 
+    var speechEnabled by mutableStateOf(true)
+        private set
+
+    var summaryRepDrafts by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    var summarySaved by mutableStateOf(false)
+        private set
+
+    var selectedHistorySessionId by mutableLongStateOf(-1L)
+        private set
+
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
 
     init {
         viewModelScope.launch {
             trainingHistoryRepository.observeRecentSessions().collect { sessions ->
                 recentSessions = sessions
+                if (selectedHistorySessionId == -1L && sessions.isNotEmpty()) {
+                    selectedHistorySessionId = sessions.first().session.sessionId
+                }
             }
         }
     }
@@ -74,6 +90,9 @@ class LiuyiTrainerViewModel(
             fallback = selectedContext,
         )
 
+    val selectedHistorySession: TrainingSessionWithSets?
+        get() = recentSessions.firstOrNull { it.session.sessionId == selectedHistorySessionId }
+
     fun selectFamily(familyId: String) {
         selectedFamilyId = familyId
         selectedStepLevel = 1
@@ -87,9 +106,19 @@ class LiuyiTrainerViewModel(
         restPresetSeconds = seconds
     }
 
+    fun setSpeechEnabled(enabled: Boolean) {
+        speechEnabled = enabled
+    }
+
+    fun selectHistorySession(sessionId: Long) {
+        selectedHistorySessionId = sessionId
+    }
+
     fun beginTraining() {
         val startedAt = Instant.now()
         nowUtc = startedAt
+        summaryRepDrafts = emptyList()
+        summarySaved = false
         sessionState = startTrainingSession(
             familyId = selectedContext.family.id,
             stepLevel = selectedContext.step.level,
@@ -147,10 +176,50 @@ class LiuyiTrainerViewModel(
             endedAtUtc = endedAt,
         )
         sessionState = completedState
-        viewModelScope.launch {
-            trainingHistoryRepository.saveCompletedSession(completedState)
-        }
+        summaryRepDrafts = completedState.completedSets.map { it.completedRepCount.toString() }
+        summarySaved = false
         ensureTicker()
+    }
+
+    fun updateSummaryRep(
+        index: Int,
+        value: String,
+    ) {
+        if (summarySaved) {
+            return
+        }
+        if (index !in summaryRepDrafts.indices) {
+            return
+        }
+
+        val sanitized = value.filter(Char::isDigit).take(4)
+        summaryRepDrafts = summaryRepDrafts.mapIndexed { currentIndex, currentValue ->
+            if (currentIndex == index) {
+                sanitized
+            } else {
+                currentValue
+            }
+        }
+    }
+
+    fun saveCompletedTraining() {
+        val currentState = sessionState
+        if (currentState !is TrainingSessionState.Completed || summarySaved) {
+            return
+        }
+
+        val adjustedSets = currentState.completedSets.mapIndexed { index, set ->
+            set.copy(
+                completedRepCount = summaryRepDrafts.getOrNull(index)?.toIntOrNull()
+                    ?: set.completedRepCount,
+            )
+        }
+        val adjustedState = currentState.copy(completedSets = adjustedSets)
+        sessionState = adjustedState
+        summarySaved = true
+        viewModelScope.launch {
+            trainingHistoryRepository.saveCompletedSession(adjustedState)
+        }
     }
 
     private fun ensureTicker() {

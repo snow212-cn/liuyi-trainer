@@ -9,7 +9,7 @@
       "eccentricSeconds": 2,
       "bottomPauseSeconds": 1,
       "concentricSeconds": 2,
-      "topPauseSeconds": 1,
+      "topPauseSeconds": 0,
       "source": "仅用于原型开发，非最终内容"
     }
   ],
@@ -18,6 +18,7 @@
       "id": "pushup",
       "titleZh": "俯卧撑",
       "titleEn": "Pushup",
+      "sourceChapterTitle": "第五章 俯卧撑",
       "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       "cadenceProfileId": "preview_default"
     },
@@ -25,6 +26,7 @@
       "id": "squat",
       "titleZh": "深蹲",
       "titleEn": "Squat",
+      "sourceChapterTitle": "第六章 深蹲",
       "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       "cadenceProfileId": "preview_default"
     },
@@ -32,6 +34,7 @@
       "id": "pullup",
       "titleZh": "引体",
       "titleEn": "Pullup",
+      "sourceChapterTitle": "第七章 引体向上",
       "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       "cadenceProfileId": "preview_default"
     },
@@ -39,6 +42,7 @@
       "id": "leg_raise",
       "titleZh": "举腿",
       "titleEn": "Leg Raise",
+      "sourceChapterTitle": "第八章 举腿",
       "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       "cadenceProfileId": "preview_default"
     },
@@ -46,6 +50,7 @@
       "id": "bridge",
       "titleZh": "桥",
       "titleEn": "Bridge",
+      "sourceChapterTitle": "第九章 桥",
       "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       "cadenceProfileId": "preview_default"
     },
@@ -53,9 +58,9 @@
       "id": "handstand_pushup",
       "titleZh": "倒立撑",
       "titleEn": "Handstand Pushup",
+      "sourceChapterTitle": "第十章 倒立撑",
       "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       "cadenceProfileId": "preview_default"
     }
   ]
 }
-

@@ -11,6 +11,7 @@ kapt {
 android {
     namespace = "com.liuyi.trainer"
     compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.liuyi.trainer"

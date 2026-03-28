@@ -72,6 +72,11 @@ class LiuyiTrainerViewModel(
                 recentSessions = sessions
                 if (selectedHistorySessionId == -1L && sessions.isNotEmpty()) {
                     selectedHistorySessionId = sessions.first().session.sessionId
+                } else if (
+                    selectedHistorySessionId != -1L &&
+                    sessions.none { it.session.sessionId == selectedHistorySessionId }
+                ) {
+                    selectedHistorySessionId = sessions.firstOrNull()?.session?.sessionId ?: -1L
                 }
             }
         }
@@ -112,6 +117,29 @@ class LiuyiTrainerViewModel(
 
     fun selectHistorySession(sessionId: Long) {
         selectedHistorySessionId = sessionId
+    }
+
+    fun loadSelectedHistoryAsCurrent() {
+        val session = selectedHistorySession ?: return
+        selectedFamilyId = session.session.familyId
+        selectedStepLevel = session.session.stepLevel
+        restPresetSeconds = session.session.restPresetSeconds
+        sessionState = TrainingSessionState.Idle
+        summaryRepDrafts = emptyList()
+        summarySaved = false
+        tickerJob?.cancel()
+        tickerJob = null
+        nowUtc = Instant.now()
+    }
+
+    fun deleteSelectedHistorySession() {
+        val sessionId = selectedHistorySessionId
+        if (sessionId == -1L) {
+            return
+        }
+        viewModelScope.launch {
+            trainingHistoryRepository.deleteSession(sessionId)
+        }
     }
 
     fun beginTraining() {

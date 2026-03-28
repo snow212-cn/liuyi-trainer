@@ -9,6 +9,10 @@ class TrainingHistoryRepository(
     fun observeRecentSessions(): Flow<List<TrainingSessionWithSets>> =
         trainingHistoryDao.observeRecentSessions()
 
+    suspend fun deleteSession(sessionId: Long) {
+        trainingHistoryDao.deleteSessionById(sessionId)
+    }
+
     suspend fun saveCompletedSession(
         state: TrainingSessionState.Completed,
     ) {

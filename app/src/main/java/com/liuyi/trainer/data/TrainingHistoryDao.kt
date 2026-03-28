@@ -33,5 +33,7 @@ interface TrainingHistoryDao {
     @Transaction
     @Query("SELECT * FROM training_sessions ORDER BY sessionEndedAtUtcEpochMs DESC")
     fun observeRecentSessions(): Flow<List<TrainingSessionWithSets>>
-}
 
+    @Query("DELETE FROM training_sessions WHERE sessionId = :sessionId")
+    suspend fun deleteSessionById(sessionId: Long)
+}

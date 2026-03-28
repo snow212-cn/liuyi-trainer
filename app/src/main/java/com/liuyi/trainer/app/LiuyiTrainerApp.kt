@@ -200,6 +200,14 @@ fun LiuyiTrainerApp(
                 onBackHome = {
                     navController.popBackStack(Routes.Home, false)
                 },
+                onReuse = {
+                    appViewModel.loadSelectedHistoryAsCurrent()
+                    navController.popBackStack(Routes.Home, false)
+                },
+                onDelete = {
+                    appViewModel.deleteSelectedHistorySession()
+                    navController.popBackStack()
+                },
             )
         }
 

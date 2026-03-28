@@ -84,7 +84,6 @@ data class RunningPreview(
     val currentSetIndex: Int,
     val completedSetCount: Int,
     val totalRepCount: Int,
-    val sessionStartLabel: String,
     val sessionElapsedLabel: String,
 )
 
@@ -610,6 +609,8 @@ fun TrainingHistoryDetailScreen(
     preview: HistoryDetailPreview?,
     onBack: () -> Unit,
     onBackHome: () -> Unit,
+    onReuse: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -644,6 +645,24 @@ fun TrainingHistoryDetailScreen(
                     title = "本次训练信息",
                     lines = preview.metaLines,
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilledTonalButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = onReuse,
+                    ) {
+                        Text("载入为当前训练")
+                    }
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = onDelete,
+                    ) {
+                        Text("删除记录")
+                    }
+                }
 
                 Card {
                     Column(
@@ -715,7 +734,6 @@ fun buildRunningPreview(
         currentSetIndex = state.completedSets.size + 1,
         completedSetCount = state.completedSets.size,
         totalRepCount = state.completedSets.sumOf { it.completedRepCount } + progress.completedRepCount,
-        sessionStartLabel = UiTimeFormatter.format(state.sessionStartedAtUtc),
         sessionElapsedLabel = formatDuration(sessionElapsed),
     )
 }
@@ -874,7 +892,7 @@ fun buildHistoryPreview(
         val setPreview = sessionWithSets.sets
             .sortedBy { it.setIndex }
             .joinToString(separator = " / ") { set ->
-                "${set.setIndex}:${set.completedRepCount}"
+                set.completedRepCount.toString()
             }
             .ifBlank { "暂无分组明细" }
 
@@ -921,12 +939,12 @@ fun buildHistoryDetailPreview(
         totalsLabel = "共 ${sessionWithSets.session.totalSets} 组，累计 ${sessionWithSets.session.totalReps} 次",
         metaLines = listOf(
             "训练时长 ${formatStopwatch(sessionDurationMs)}",
-            "组间休息 ${sessionWithSets.session.restPresetSeconds} 秒",
-            "各组实际休息见下方分组明细",
+            "休息预设 ${sessionWithSets.session.restPresetSeconds} 秒",
+            "下方逐组显示结束时间与实际组间休息",
         ),
         setDetails = sortedSets.mapIndexed { index, set ->
             val restDetail = if (index == 0) {
-                null
+                "首组前无组间休息"
             } else {
                 val previousSet = sortedSets[index - 1]
                 val restGapMs = (set.startedAtUtcEpochMs - previousSet.endedAtUtcEpochMs).coerceAtLeast(0L)
@@ -934,10 +952,8 @@ fun buildHistoryDetailPreview(
             }
             buildString {
                 append("第 ${set.setIndex} 组 · ${set.completedRepCount} 次 · 时长 ${formatStopwatch(set.elapsedMs)}")
-                if (restDetail != null) {
-                    append(" · ")
-                    append(restDetail)
-                }
+                append(" · ")
+                append(restDetail)
                 append(" · 结束 ${UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs))}")
             }
             },
@@ -1095,23 +1111,25 @@ private fun RunningStatsCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            RunningMetricBox(
+                modifier = Modifier.fillMaxWidth(),
+                label = "已训练",
+                value = elapsedLabel,
+                emphasized = true,
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 RunningMetricBox(
                     modifier = Modifier.weight(1f),
-                    label = "本组",
+                    label = "本组次数",
                     value = repCount.toString(),
                 )
                 RunningMetricBox(
                     modifier = Modifier.weight(1f),
-                    label = "已过",
-                    value = elapsedLabel,
-                )
-                RunningMetricBox(
-                    modifier = Modifier.weight(1f),
-                    label = "累计",
+                    label = "累计次数",
                     value = totalRepCount.toString(),
                 )
             }
@@ -1225,11 +1243,18 @@ private fun RunningMetricBox(
     modifier: Modifier = Modifier,
     label: String,
     value: String,
+    emphasized: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(
+                if (emphasized) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+            )
             .padding(horizontal = 12.dp, vertical = 14.dp),
     ) {
         Column(
@@ -1243,7 +1268,11 @@ private fun RunningMetricBox(
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
+                style = if (emphasized) {
+                    MaterialTheme.typography.displaySmall
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),

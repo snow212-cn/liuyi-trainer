@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -127,11 +129,11 @@ private fun HomeHeroCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = "囚徒健身",
-                style = MaterialTheme.typography.titleLarge,
+                text = "训练指挥台",
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
             Row(
@@ -158,7 +160,8 @@ private fun HomeHeroCard(
                 ) {
                     Text(
                         text = family.titleZh,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = step.label,
@@ -166,11 +169,29 @@ private fun HomeHeroCard(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "${cadenceLabel} · ${cadenceSeconds} 秒/次 · 休息 ${restPresetSeconds} 秒",
+                        text = "第 ${step.level} 式",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "${cadenceSeconds} 秒/次 · 休息 ${restPresetSeconds} 秒",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    text = cadenceLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
 
             Button(
@@ -264,7 +285,7 @@ private fun StepDeckCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "十式",
+                text = "当前十式",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
@@ -275,18 +296,18 @@ private fun StepDeckCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 StepSideCard(
-                    modifier = Modifier.weight(0.9f),
+                    modifier = Modifier.weight(0.78f),
                     title = previousStep?.label ?: "",
                     level = previousStep?.level,
                     enabled = previousStep != null,
                     onClick = { previousStep?.let { onSelectStep(it.level) } },
                 )
                 CurrentStepCard(
-                    modifier = Modifier.weight(1.2f),
+                    modifier = Modifier.weight(1.44f),
                     step = currentStep,
                 )
                 StepSideCard(
-                    modifier = Modifier.weight(0.9f),
+                    modifier = Modifier.weight(0.78f),
                     title = nextStep?.label ?: "",
                     level = nextStep?.level,
                     enabled = nextStep != null,
@@ -319,11 +340,6 @@ private fun StepDeckCard(
                     Text("下一式")
                 }
             }
-
-            StepIndexStrip(
-                selectedLevel = currentStep.level,
-                onSelectStep = onSelectStep,
-            )
         }
     }
 }
@@ -337,7 +353,7 @@ private fun StepSideCard(
     onClick: () -> Unit,
 ) {
     Card(
-        modifier = modifier.height(110.dp),
+        modifier = modifier.height(120.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
@@ -351,8 +367,8 @@ private fun StepSideCard(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = if (level == null) "" else level.toString(),
-                style = MaterialTheme.typography.titleLarge,
+                text = if (level == null) "" else "第${level}式",
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -372,7 +388,7 @@ private fun CurrentStepCard(
     step: MovementStep,
 ) {
     Card(
-        modifier = modifier.height(136.dp),
+        modifier = modifier.height(152.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
@@ -399,48 +415,9 @@ private fun CurrentStepCard(
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
-                    text = "当前选择",
+                    text = "上一式 / 当前 / 下一式",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepIndexStrip(
-    selectedLevel: Int,
-    onSelectStep: (Int) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        (1..10).forEach { level ->
-            val selected = level == selectedLevel
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(36.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                ),
-                onClick = { onSelectStep(level) },
-            ) {
-                Text(
-                    text = level.toString(),
-                    color = if (selected) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp),
-                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -471,23 +448,63 @@ private fun RestPresetCard(
             ) {
                 restPresetOptions.forEach { seconds ->
                     val selected = seconds == selectedRestPresetSeconds
-                    if (selected) {
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onSelectRestPreset(seconds) },
-                        ) {
-                            Text("${seconds}s")
-                        }
-                    } else {
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onSelectRestPreset(seconds) },
-                        ) {
-                            Text("${seconds}s")
-                        }
-                    }
+                    RestPresetTick(
+                        modifier = Modifier.weight(1f),
+                        seconds = seconds,
+                        selected = selected,
+                        onClick = { onSelectRestPreset(seconds) },
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RestPresetTick(
+    modifier: Modifier = Modifier,
+    seconds: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier.height(72.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+        ),
+        border = if (selected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        },
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+            )
+            Text(
+                text = "${seconds}s",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

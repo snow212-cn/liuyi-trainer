@@ -13,6 +13,12 @@ if errorlevel 1 (
 ) else (
   java -version
 )
+where javac >nul 2>nul
+if errorlevel 1 (
+  echo 未找到 javac，当前只有 JRE 或尚未安装 JDK
+) else (
+  echo 已找到 javac
+)
 echo.
 
 echo [2/4] 检查 Gradle Wrapper
@@ -44,10 +50,13 @@ if defined ANDROID_SDK_ROOT (
 echo.
 
 echo [4/4] 当前结论
-if not defined ANDROID_HOME if not defined ANDROID_SDK_ROOT (
+where javac >nul 2>nul
+if errorlevel 1 (
+  echo 当前主要缺口是 JDK，所以 Gradle 还不能进行正式编译。
+) else if not defined ANDROID_HOME if not defined ANDROID_SDK_ROOT (
   echo 当前主要缺口是 Android SDK，所以还不能正式构建 APK。
 ) else (
-  echo 已检测到 Android SDK 环境变量，可继续尝试正式构建。
+  echo 已检测到 JDK 与 Android SDK 关键条件，可继续尝试正式构建。
 )
 echo.
 echo 你也可以直接查看：

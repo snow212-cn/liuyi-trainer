@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-debug-apk:
@@ -50,6 +50,21 @@ jobs:
           name: liuyi-trainer-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Publish debug APK to Releases
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: debug-latest
+          name: Liuyi Trainer Debug APK
+          body: |
+            自动更新的调试版 APK 下载页。
+
+            仓库为公开状态时，可下载此处的 APK，不需要登录 GitHub。
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: app/build/outputs/apk/debug/*.apk
 
       - name: Upload build reports
         if: failure()

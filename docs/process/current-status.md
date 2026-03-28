@@ -37,6 +37,7 @@
   - 保持原有 `on:` 条件不变
   - 自动取消同分支旧任务
   - 启用 Gradle 缓存
+- 调试版 Release 固定为 `debug-latest`，并覆盖同名 APK 文件
 - 已修正一个真实编译阻塞点：`Room.databaseBuilder(...)` 命名参数错误
 - 已修正第一次云端构建暴露的问题：移除 AGP 9 不支持的 `android.kotlinOptions{}`
 - 已修正第二次云端构建暴露的问题：XML 主题不应引用未引入依赖提供的 `Theme.Material3.DayNight.NoActionBar`

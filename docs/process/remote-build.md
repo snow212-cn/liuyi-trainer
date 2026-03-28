@@ -29,7 +29,42 @@
 目标是让 GitHub 自动产出一个可下载的调试版 APK：
 
 - 文件位置通常是 `app/build/outputs/apk/debug/`
-- 在 GitHub 页面里会作为构建产物下载
+- 会同时出现在：
+  - `Actions` 里的 `Artifacts`
+  - `Releases` 里的公开下载资产
+
+## 如果你不想登录 GitHub 下载
+
+不要走 `Artifacts`。
+
+更合适的路线是：
+
+1. 把仓库设为公开仓库
+2. 让工作流构建成功一次
+3. 直接在 GitHub 的 `Releases` 页面下载 APK
+
+公开仓库下，`Releases` 资产可以不登录直接下载。
+
+如果仓库是私有仓库，则 GitHub 不支持匿名下载。
+
+## 调试版 Release 会不会越堆越多
+
+当前不会按每次构建新增一个正式版本页。
+
+现在工作流固定使用：
+
+- tag: `debug-latest`
+- name: `Liuyi Trainer Debug APK`
+
+并且会覆盖同名文件。
+
+也就是说，调试分发始终只维护一个“最新调试版”入口。
+
+以后如果需要正式发版，再单独按版本号创建：
+
+- `v0.1.0`
+- `v0.1.1`
+- `v0.2.0`
 
 ## 最简单的操作顺序
 
@@ -38,8 +73,9 @@
 3. 打开 GitHub 仓库里的 `Actions`
 4. 运行 `Android Debug APK`
 5. 等待构建完成
-6. 下载产物 `liuyi-trainer-debug-apk`
-7. 把里面的 APK 传到安卓手机安装测试
+6. 打开仓库的 `Releases`
+7. 下载最新的调试版 APK
+8. 把 APK 传到安卓手机安装测试
 
 ## 如果构建失败，先看什么
 

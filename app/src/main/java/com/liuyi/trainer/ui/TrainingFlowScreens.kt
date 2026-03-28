@@ -2,14 +2,19 @@ package com.liuyi.trainer.ui
 
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -31,9 +36,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.liuyi.trainer.data.TrainingSessionWithSets
 import com.liuyi.trainer.model.CadencePhase
@@ -229,20 +236,20 @@ fun TrainingRunningScreen(
             CompactStatusStrip(
                 lines = listOf(
                     "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组 · 累计 ${preview.totalRepCount} 次",
+                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组",
                 ),
             )
 
-            FocusMetricCard(
-                eyebrow = "当前阶段",
-                title = preview.currentPhaseLabel,
-                metric = preview.phaseElapsedLabel,
-                supporting = "一级信息只保留动作阶段和阶段秒数。",
+            CadenceStageHero(
+                phaseLabel = preview.currentPhaseLabel,
+                phaseElapsedLabel = preview.phaseElapsedLabel,
+                cueText = preview.phaseCueText,
             )
 
             RunningStatsCard(
                 repCount = preview.currentRepCount,
                 elapsedLabel = preview.sessionElapsedLabel,
+                totalRepCount = preview.totalRepCount,
                 speechEnabled = speechEnabled,
                 onToggleSpeech = { onToggleSpeech(!speechEnabled) },
             )
@@ -551,8 +558,8 @@ fun TrainingHistoryScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -565,22 +572,24 @@ fun TrainingHistoryScreen(
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.weight(1f),
                                 )
+                            }
+                            HistorySetBand(setPreview = row.setPreview)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Text(
                                     text = row.totalsLabel,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = row.dateLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Text(
-                                text = row.setPreview,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Text(
-                                text = row.dateLabel,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                     }
                 }
@@ -1075,53 +1084,188 @@ private fun FocusMetricCard(
 private fun RunningStatsCard(
     repCount: Int,
     elapsedLabel: String,
+    totalRepCount: Int,
     speechEnabled: Boolean,
     onToggleSpeech: () -> Unit,
 ) {
     Card {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = "当前组次数",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                RunningMetricBox(
+                    modifier = Modifier.weight(1f),
+                    label = "本组",
+                    value = repCount.toString(),
                 )
-                Text(
-                    text = repCount.toString(),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
+                RunningMetricBox(
+                    modifier = Modifier.weight(1f),
+                    label = "已过",
+                    value = elapsedLabel,
+                )
+                RunningMetricBox(
+                    modifier = Modifier.weight(1f),
+                    label = "累计",
+                    value = totalRepCount.toString(),
                 )
             }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onToggleSpeech,
             ) {
-                Text(
-                    text = "已过时间",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = elapsedLabel,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-
-            OutlinedButton(onClick = onToggleSpeech) {
-                Text(if (speechEnabled) "语音开" else "语音关")
+                Text(if (speechEnabled) "语音提示：开" else "语音提示：关")
             }
         }
+    }
+}
+
+@Composable
+private fun CadenceStageHero(
+    phaseLabel: String,
+    phaseElapsedLabel: String,
+    cueText: String,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = cueText,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(220.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(
+                        width = 6.dp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        shape = CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = phaseLabel,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = phaseElapsedLabel,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            PhaseCueTrack(activeCue = cueText)
+        }
+    }
+}
+
+@Composable
+private fun PhaseCueTrack(activeCue: String) {
+    val cues = listOf("落", "停", "起")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        cues.forEach { cue ->
+            val active = cue == activeCue
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (active) MaterialTheme.colorScheme.secondaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = cue,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (active) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RunningMetricBox(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistorySetBand(setPreview: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = setPreview,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

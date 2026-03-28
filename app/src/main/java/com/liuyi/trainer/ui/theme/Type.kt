@@ -8,22 +8,25 @@ import androidx.compose.ui.unit.sp
 
 val LiuyiTypography = Typography(
     displaySmall = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Bold,
         fontSize = 34.sp,
-        lineHeight = 40.sp,
+        lineHeight = 38.sp,
+        letterSpacing = 0.4.sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
+        letterSpacing = 0.2.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.SemiBold,
         fontSize = 18.sp,
         lineHeight = 24.sp,
+        letterSpacing = 0.15.sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -45,10 +48,9 @@ val LiuyiTypography = Typography(
     ),
     labelLarge = TextStyle(
         fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.3.sp,
+        letterSpacing = 0.8.sp,
     ),
 )
-

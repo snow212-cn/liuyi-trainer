@@ -10,8 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -165,27 +166,60 @@ fun TrainingReadyScreen(
                 onAction = onBack,
             )
 
-            FocusMetricCard(
-                eyebrow = preview.context.family.titleZh,
-                title = preview.context.step.label,
-                metric = "节奏 ${preview.cadenceLabel}",
-                supporting = "训练不会自动开始，进入后先停在准备态，由你手动开始本组。",
-            )
-
-            CompactInfoCard(
-                title = "本次设置",
+            CompactStatusStrip(
                 lines = listOf(
-                    "每次完整循环 ${preview.cadenceSeconds} 秒",
-                    "组间休息 ${preview.restPresetLabel}",
-                    if (speechEnabled) "语音提示已开启" else "语音提示已关闭",
+                    "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                    "进入后不会自动开练，必须由你手动开始本组",
                 ),
             )
 
-            SettingToggleCard(
-                title = "语音提示",
-                value = if (speechEnabled) "开启" else "关闭",
-                hint = "训练中按阶段播报“落 / 停 / 起”。",
-                onToggle = { onToggleSpeech(!speechEnabled) },
+            FocusMetricCard(
+                eyebrow = "READY CHECK",
+                title = preview.context.step.label,
+                metric = "原书节奏 2-1-2",
+                supporting = "每次完整循环 ${preview.cadenceSeconds} 秒 · 休息 ${preview.restPresetLabel}",
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "本次设置",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    TrainingPrepLine(
+                        label = "节奏提示",
+                        value = "落 / 停 / 起",
+                    )
+                    TrainingPrepLine(
+                        label = "语音提示",
+                        value = if (speechEnabled) "开启" else "关闭",
+                    )
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onToggleSpeech(!speechEnabled) },
+                    ) {
+                        Text(if (speechEnabled) "关闭语音提示" else "开启语音提示")
+                    }
+                }
+            }
+
+            CompactInfoCard(
+                title = "开始前",
+                lines = listOf(
+                    "先摆好动作起始姿势",
+                    "准备好后再手动开始本组",
+                    "动作标准页只做训练前快速复核",
+                ),
             )
 
             Button(
@@ -299,7 +333,7 @@ fun TrainingRestScreen(
             )
 
             FocusMetricCard(
-                eyebrow = "休息状态",
+                eyebrow = "REST WINDOW",
                 title = preview.restHeadline,
                 metric = preview.restTimeLabel,
                 supporting = preview.restHint,
@@ -638,7 +672,7 @@ fun TrainingHistoryDetailScreen(
                     eyebrow = preview.title,
                     title = preview.totalsLabel,
                     metric = preview.timeRangeLabel,
-                    supporting = "每组详情放在下方单独区域。",
+                    supporting = "下方可直接载入当前训练或删除本条记录。",
                 )
 
                 CompactInfoCard(
@@ -664,7 +698,11 @@ fun TrainingHistoryDetailScreen(
                     }
                 }
 
-                Card {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1104,7 +1142,11 @@ private fun RunningStatsCard(
     speechEnabled: Boolean,
     onToggleSpeech: () -> Unit,
 ) {
-    Card {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1138,7 +1180,7 @@ private fun RunningStatsCard(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onToggleSpeech,
             ) {
-                Text(if (speechEnabled) "语音提示：开" else "语音提示：关")
+                Text(if (speechEnabled) "语音提示已开启" else "语音提示已关闭")
             }
         }
     }
@@ -1163,9 +1205,10 @@ private fun CadenceStageHero(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = cueText,
+                text = "CADENCE CORE",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Box(
@@ -1186,12 +1229,18 @@ private fun CadenceStageHero(
                 ) {
                     Text(
                         text = phaseLabel,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = cueText,
+                        style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = phaseElapsedLabel,
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
@@ -1199,6 +1248,31 @@ private fun CadenceStageHero(
             }
 
             PhaseCueTrack(activeCue = cueText)
+            BreathPulseRow(activeCue = cueText)
+        }
+    }
+}
+
+@Composable
+private fun BreathPulseRow(activeCue: String) {
+    val activeIndex = listOf("落", "停", "起").indexOf(activeCue).coerceAtLeast(0)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        listOf(12.dp, 20.dp, 32.dp, 20.dp, 12.dp).forEachIndexed { index, height ->
+            val highlighted = index == activeIndex + 1
+            Box(
+                modifier = Modifier
+                    .width(8.dp)
+                    .height(height)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (highlighted) MaterialTheme.colorScheme.secondary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                    ),
+            )
         }
     }
 }
@@ -1278,6 +1352,30 @@ private fun RunningMetricBox(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+@Composable
+private fun TrainingPrepLine(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+        )
     }
 }
 

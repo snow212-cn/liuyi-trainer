@@ -1,24 +1,24 @@
 package com.liuyi.trainer.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-private val LightColors = lightColorScheme(
+private val LightColors = darkColorScheme(
     primary = Clay,
     onPrimary = Chalk,
-    primaryContainer = Sand,
-    onPrimaryContainer = Iron,
+    primaryContainer = Bronze,
+    onPrimaryContainer = Chalk,
     secondary = Bronze,
     onSecondary = Chalk,
-    secondaryContainer = Sage.copy(alpha = 0.18f),
-    onSecondaryContainer = Iron,
-    background = Chalk,
-    onBackground = Iron,
-    surface = Chalk,
-    onSurface = Iron,
-    surfaceVariant = Sand.copy(alpha = 0.65f),
-    onSurfaceVariant = Smoke,
+    secondaryContainer = Smoke,
+    onSecondaryContainer = Chalk,
+    background = Asphalt,
+    onBackground = Sand,
+    surface = ColorPaletteSurface,
+    onSurface = Sand,
+    surfaceVariant = ColorPalettePanel,
+    onSurfaceVariant = Sand.copy(alpha = 0.72f),
 )
 
 @Composable
@@ -31,4 +31,3 @@ fun LiuyiTrainerTheme(
         content = content,
     )
 }
-

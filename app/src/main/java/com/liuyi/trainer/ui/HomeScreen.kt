@@ -58,46 +58,65 @@ fun HomeScreen(
     val previousStep = selectedFamily.steps.getOrNull(selectedStep.level - 2)
     val nextStep = selectedFamily.steps.getOrNull(selectedStep.level)
 
-    Surface(modifier = Modifier.fillMaxSize()) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                HomeHeroCard(
+                TrainingBoardCard(
                     family = selectedFamily,
                     step = selectedStep,
                     cadenceLabel = previewCadenceLabel,
                     cadenceSeconds = previewCadenceSeconds,
                     restPresetSeconds = restPresetSeconds,
                     onStartTraining = onStartTraining,
+                    onOpenStandards = onOpenStandards,
                 )
             }
 
             item {
-                FamilyCompactGrid(
-                    families = families,
-                    selectedFamilyId = selectedFamily.id,
-                    onSelectFamily = onSelectFamily,
-                )
+                SectionCard(
+                    title = "六艺切换",
+                    subtitle = "6 项全览",
+                ) {
+                    FamilySteelGrid(
+                        families = families,
+                        selectedFamilyId = selectedFamily.id,
+                        onSelectFamily = onSelectFamily,
+                    )
+                }
             }
 
             item {
-                StepDeckCard(
-                    currentStep = selectedStep,
-                    previousStep = previousStep,
-                    nextStep = nextStep,
-                    onSelectStep = onSelectStep,
-                )
+                SectionCard(
+                    title = "十式切换",
+                    subtitle = "第 ${selectedStep.level} 式",
+                ) {
+                    StepDialCard(
+                        currentStep = selectedStep,
+                        previousStep = previousStep,
+                        nextStep = nextStep,
+                        onSelectStep = onSelectStep,
+                    )
+                }
             }
 
             item {
-                RestPresetCard(
-                    restPresetOptions = restPresetOptions,
-                    selectedRestPresetSeconds = restPresetSeconds,
-                    onSelectRestPreset = onSelectRestPreset,
-                )
+                SectionCard(
+                    title = "组间休息",
+                    subtitle = "刻度预设",
+                ) {
+                    RestRail(
+                        restPresetOptions = restPresetOptions,
+                        selectedRestPresetSeconds = restPresetSeconds,
+                        onSelectRestPreset = onSelectRestPreset,
+                    )
+                }
             }
 
             item {
@@ -112,30 +131,34 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeroCard(
+private fun TrainingBoardCard(
     family: MovementFamily,
     step: MovementStep,
     cadenceLabel: String,
     cadenceSeconds: Long,
     restPresetSeconds: Int,
     onStartTraining: () -> Unit,
+    onOpenStandards: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = "训练指挥台",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -143,24 +166,27 @@ private fun HomeHeroCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                        .size(74.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.secondary),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = step.level.toString(),
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondary,
                     )
                 }
+
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     Text(
                         text = family.titleZh,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
@@ -169,28 +195,24 @@ private fun HomeHeroCard(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "第 ${step.level} 式",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "${cadenceSeconds} 秒/次 · 休息 ${restPresetSeconds} 秒",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "${cadenceSeconds} 秒/次  ·  休息 ${restPresetSeconds} 秒",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = cadenceLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                BoardTag(
+                    modifier = Modifier.weight(1f),
+                    label = cadenceLabel,
+                )
+                BoardTag(
+                    modifier = Modifier.weight(1f),
+                    label = "第 ${step.level} 式",
                 )
             }
 
@@ -200,311 +222,364 @@ private fun HomeHeroCard(
             ) {
                 Text("进入训练")
             }
-        }
-    }
-}
-
-@Composable
-private fun FamilyCompactGrid(
-    families: List<MovementFamily>,
-    selectedFamilyId: String,
-    onSelectFamily: (String) -> Unit,
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "六艺",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            families.chunked(3).forEach { rowFamilies ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    rowFamilies.forEach { family ->
-                        val selected = family.id == selectedFamilyId
-                        val colors = if (selected) {
-                            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                        } else {
-                            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                        }
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 62.dp),
-                            colors = colors,
-                            border = if (selected) {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                            } else {
-                                null
-                            },
-                            onClick = { onSelectFamily(family.id) },
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = family.titleZh,
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
-                    }
-                    repeat(3 - rowFamilies.size) {
-                        Box(modifier = Modifier.weight(1f))
-                    }
-                }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenStandards,
+            ) {
+                Text("动作标准")
             }
         }
     }
 }
 
 @Composable
-private fun StepDeckCard(
-    currentStep: MovementStep,
-    previousStep: MovementStep?,
-    nextStep: MovementStep?,
-    onSelectStep: (Int) -> Unit,
+private fun BoardTag(
+    modifier: Modifier = Modifier,
+    label: String,
 ) {
-    Card {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun SectionCard(
+    title: String,
+    subtitle: String,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "当前十式",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StepSideCard(
-                    modifier = Modifier.weight(0.78f),
-                    title = previousStep?.label ?: "",
-                    level = previousStep?.level,
-                    enabled = previousStep != null,
-                    onClick = { previousStep?.let { onSelectStep(it.level) } },
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                 )
-                CurrentStepCard(
-                    modifier = Modifier.weight(1.44f),
-                    step = currentStep,
-                )
-                StepSideCard(
-                    modifier = Modifier.weight(0.78f),
-                    title = nextStep?.label ?: "",
-                    level = nextStep?.level,
-                    enabled = nextStep != null,
-                    onClick = { nextStep?.let { onSelectStep(it.level) } },
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            content()
+        }
+    }
+}
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        val targetLevel = (currentStep.level - 1).coerceAtLeast(1)
-                        onSelectStep(targetLevel)
+@Composable
+private fun FamilySteelGrid(
+    families: List<MovementFamily>,
+    selectedFamilyId: String,
+    onSelectFamily: (String) -> Unit,
+) {
+    families.chunked(3).forEach { rowFamilies ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            rowFamilies.forEach { family ->
+                val selected = family.id == selectedFamilyId
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 72.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                    ),
+                    border = if (selected) {
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
+                    } else {
+                        null
                     },
-                    enabled = currentStep.level > 1,
+                    onClick = { onSelectFamily(family.id) },
                 ) {
-                    Text("上一式")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = family.titleZh,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = family.titleEn.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        val targetLevel = (currentStep.level + 1).coerceAtMost(10)
-                        onSelectStep(targetLevel)
-                    },
-                    enabled = currentStep.level < 10,
-                ) {
-                    Text("下一式")
-                }
+            }
+            repeat(3 - rowFamilies.size) {
+                Box(modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun StepSideCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    level: Int?,
-    enabled: Boolean,
-    onClick: () -> Unit,
+private fun StepDialCard(
+    currentStep: MovementStep,
+    previousStep: MovementStep?,
+    nextStep: MovementStep?,
+    onSelectStep: (Int) -> Unit,
 ) {
-    Card(
-        modifier = modifier.height(120.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-        onClick = onClick,
-        enabled = enabled,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = if (level == null) "" else "第${level}式",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = if (enabled) title else "无",
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun CurrentStepCard(
-    modifier: Modifier = Modifier,
-    step: MovementStep,
-) {
-    Card(
-        modifier = modifier.height(152.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "第 ${step.level} 式",
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Text(
-                text = step.label,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
             Box(
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "上一式 / 当前 / 下一式",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    text = currentStep.level.toString(),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun RestPresetCard(
-    restPresetOptions: List<Int>,
-    selectedRestPresetSeconds: Int,
-    onSelectRestPreset: (Int) -> Unit,
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = "组间休息",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Card(
+                modifier = Modifier.weight(1f),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
             ) {
-                restPresetOptions.forEach { seconds ->
-                    val selected = seconds == selectedRestPresetSeconds
-                    RestPresetTick(
-                        modifier = Modifier.weight(1f),
-                        seconds = seconds,
-                        selected = selected,
-                        onClick = { onSelectRestPreset(seconds) },
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "当前式名",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = currentStep.label,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
         }
+
+        currentStepRange().chunked(5).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                row.forEach { level ->
+                    val selected = level == currentStep.level
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
+                        ),
+                        border = if (selected) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
+                        } else {
+                            null
+                        },
+                        onClick = { onSelectStep(level) },
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = level.toString(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            NeighborStepCard(
+                modifier = Modifier.weight(1f),
+                label = "上一式",
+                step = previousStep,
+                active = false,
+                onClick = { previousStep?.let { onSelectStep(it.level) } },
+            )
+            NeighborStepCard(
+                modifier = Modifier.weight(1f),
+                label = "当前式",
+                step = currentStep,
+                active = true,
+                onClick = { onSelectStep(currentStep.level) },
+            )
+            NeighborStepCard(
+                modifier = Modifier.weight(1f),
+                label = "下一式",
+                step = nextStep,
+                active = false,
+                onClick = { nextStep?.let { onSelectStep(it.level) } },
+            )
+        }
     }
 }
 
+private fun currentStepRange(): List<Int> = (1..10).toList()
+
 @Composable
-private fun RestPresetTick(
+private fun NeighborStepCard(
     modifier: Modifier = Modifier,
-    seconds: Int,
-    selected: Boolean,
+    label: String,
+    step: MovementStep?,
+    active: Boolean,
     onClick: () -> Unit,
 ) {
     Card(
-        modifier = modifier.height(72.dp),
+        modifier = modifier.heightIn(min = 82.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
+            containerColor = if (active) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
                 MaterialTheme.colorScheme.surfaceVariant
             },
         ),
-        border = if (selected) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        border = if (active) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
         } else {
             null
         },
         onClick = onClick,
+        enabled = step != null,
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(20.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(
-                        if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "${seconds}s",
+                text = if (step == null) "无" else "第 ${step.level} 式",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )
+            Text(
+                text = step?.label ?: "",
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RestRail(
+    restPresetOptions: List<Int>,
+    selectedRestPresetSeconds: Int,
+    onSelectRestPreset: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        restPresetOptions.forEach { seconds ->
+            val selected = seconds == selectedRestPresetSeconds
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(76.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                ),
+                border = if (selected) {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
+                } else {
+                    null
+                },
+                onClick = { onSelectRestPreset(seconds) },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(if (selected) 24.dp else 18.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                    )
+                    Text(
+                        text = "${seconds}s",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
         }
     }
 }

@@ -18,6 +18,12 @@
 
 这一步不要求安装 Chrome。
 
+如果你现在要看新的 UI 重构方向，优先双击：
+
+`OPEN_UI_REDESIGN.bat`
+
+这会打开最新的静态界面审查稿。
+
 如果你想看“为什么现在还不能直接出 APK”，也可以双击：
 
 `CHECK_ANDROID_ENV.bat`

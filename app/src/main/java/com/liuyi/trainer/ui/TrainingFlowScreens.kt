@@ -229,8 +229,7 @@ fun TrainingRunningScreen(
             CompactStatusStrip(
                 lines = listOf(
                     "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组",
-                    "本次训练累计 ${preview.totalRepCount} 次",
+                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组 · 累计 ${preview.totalRepCount} 次",
                 ),
             )
 
@@ -241,26 +240,11 @@ fun TrainingRunningScreen(
                 supporting = "一级信息只保留动作阶段和阶段秒数。",
             )
 
-            FocusMetricCard(
-                eyebrow = "当前组次数",
-                title = preview.currentRepCount.toString(),
-                metric = "完整循环",
-                supporting = "只计完整 2-1-2 循环。",
-            )
-
-            SettingToggleCard(
-                title = "语音提示",
-                value = if (speechEnabled) "开启" else "关闭",
-                hint = "当前阶段切换时播报 ${preview.phaseCueText}。",
-                onToggle = { onToggleSpeech(!speechEnabled) },
-            )
-
-            CompactInfoCard(
-                title = "辅助信息",
-                lines = listOf(
-                    "开始时间 ${preview.sessionStartLabel}",
-                    "累计时长 ${preview.sessionElapsedLabel}",
-                ),
+            RunningStatsCard(
+                repCount = preview.currentRepCount,
+                elapsedLabel = preview.sessionElapsedLabel,
+                speechEnabled = speechEnabled,
+                onToggleSpeech = { onToggleSpeech(!speechEnabled) },
             )
 
             Button(
@@ -568,24 +552,32 @@ fun TrainingHistoryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = row.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = row.totalsLabel,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                             Text(
-                                text = row.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                                text = row.setPreview,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
                             )
                             Text(
                                 text = row.dateLabel,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = row.totalsLabel,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = row.setPreview,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -873,7 +865,7 @@ fun buildHistoryPreview(
         val setPreview = sessionWithSets.sets
             .sortedBy { it.setIndex }
             .joinToString(separator = " / ") { set ->
-                "第${set.setIndex}组 ${set.completedRepCount}次"
+                "${set.setIndex}:${set.completedRepCount}"
             }
             .ifBlank { "暂无分组明细" }
 
@@ -908,6 +900,7 @@ fun buildHistoryDetailPreview(
     val endedAt = Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)
     val sessionDurationMs = (sessionWithSets.session.sessionEndedAtUtcEpochMs - sessionWithSets.session.sessionStartedAtUtcEpochMs)
         .coerceAtLeast(0L)
+    val sortedSets = sessionWithSets.sets.sortedBy { it.setIndex }
 
     return HistoryDetailPreview(
         title = buildString {
@@ -920,11 +913,24 @@ fun buildHistoryDetailPreview(
         metaLines = listOf(
             "训练时长 ${formatStopwatch(sessionDurationMs)}",
             "组间休息 ${sessionWithSets.session.restPresetSeconds} 秒",
+            "各组实际休息见下方分组明细",
         ),
-        setDetails = sessionWithSets.sets
-            .sortedBy { it.setIndex }
-            .map { set ->
-                "第 ${set.setIndex} 组 · ${set.completedRepCount} 次 · 时长 ${formatStopwatch(set.elapsedMs)} · 结束 ${UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs))}"
+        setDetails = sortedSets.mapIndexed { index, set ->
+            val restDetail = if (index == 0) {
+                null
+            } else {
+                val previousSet = sortedSets[index - 1]
+                val restGapMs = (set.startedAtUtcEpochMs - previousSet.endedAtUtcEpochMs).coerceAtLeast(0L)
+                "组间休息 ${formatStopwatch(restGapMs)}"
+            }
+            buildString {
+                append("第 ${set.setIndex} 组 · ${set.completedRepCount} 次 · 时长 ${formatStopwatch(set.elapsedMs)}")
+                if (restDetail != null) {
+                    append(" · ")
+                    append(restDetail)
+                }
+                append(" · 结束 ${UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs))}")
+            }
             },
     )
 }
@@ -1061,6 +1067,60 @@ private fun FocusMetricCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun RunningStatsCard(
+    repCount: Int,
+    elapsedLabel: String,
+    speechEnabled: Boolean,
+    onToggleSpeech: () -> Unit,
+) {
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "当前组次数",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = repCount.toString(),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "已过时间",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = elapsedLabel,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            OutlinedButton(onClick = onToggleSpeech) {
+                Text(if (speechEnabled) "语音开" else "语音关")
+            }
         }
     }
 }

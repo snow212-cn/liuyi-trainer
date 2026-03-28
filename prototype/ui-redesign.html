@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>囚徒健身 UI 重构稿 v2.1</title>
+  <style>
+    :root {
+      --bg: #121110;
+      --panel: #27211d;
+      --panel-soft: #342b24;
+      --ink: #efe1cb;
+      --muted: #aa9a86;
+      --line: rgba(239, 225, 203, 0.12);
+      --rust: #b65a2a;
+      --rust-2: #7b3212;
+      --sand: #d2b07c;
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 0 0, rgba(182, 90, 42, 0.18), transparent 18%),
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.015) 0 2px, transparent 2px 10px),
+        linear-gradient(180deg, #171513, #0e0e0f);
+    }
+
+    .shell { max-width: 1320px; margin: 0 auto; padding: 20px 18px 40px; }
+    .topbar, .screens, .switch, .quick, .grid6, .actions3 { display: grid; gap: 14px; }
+    .topbar { grid-template-columns: 1.2fr 0.8fr; }
+    .screens { grid-template-columns: 360px 1fr; align-items: start; }
+
+    .panel, .screen-card, .history-item, .family-tile, .rest-notch, .metric, .step-pip, .step-neighbor {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .panel {
+      padding: 20px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 100px),
+        linear-gradient(180deg, #3a312a, #171616);
+    }
+
+    h1, h2, h3, h4, p { margin: 0; }
+    h1, .title-lg, .phase-second, .current-step-no, .rep-main-value, .history-total {
+      font-family: Impact, Haettenschweiler, "Arial Narrow Bold", "SimHei", sans-serif;
+      letter-spacing: 0.04em;
+    }
+
+    h1 { font-size: 42px; line-height: 1; margin-bottom: 12px; }
+    .sub, .notes li, .meta, .small { color: var(--muted); line-height: 1.7; }
+    .sub { font-size: 15px; }
+    .switch { grid-template-columns: repeat(4, 1fr); margin-top: 16px; }
+
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+    }
+
+    .chip.active {
+      background: linear-gradient(180deg, var(--rust), var(--rust-2));
+      color: #fff6ec;
+    }
+
+    .notes h3 { font-size: 22px; margin-bottom: 10px; }
+    .notes ul { margin: 8px 0 0; padding-left: 18px; }
+
+    .device {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 12px;
+      border-radius: 42px;
+      background: linear-gradient(180deg, #25211f, #0d0d0d);
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.48);
+      position: sticky;
+      top: 16px;
+    }
+
+    .screen {
+      min-height: 840px;
+      padding: 16px;
+      border-radius: 30px;
+      background:
+        radial-gradient(circle at 0 0, rgba(182, 90, 42, 0.16), transparent 18%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 160px),
+        linear-gradient(180deg, #25211d, #101011);
+    }
+
+    .screen[hidden] { display: none; }
+    .top, .bar, .hero-meta, .row, .step-current, .history-head, .history-subline, .rep-side, .history-side {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .top { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .bar { margin-bottom: 14px; }
+    .bar h2 { font-size: 24px; font-weight: 900; letter-spacing: 0.06em; }
+
+    .back {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .screen-card, .history-item {
+      padding: 16px;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #494038, #211d1a);
+    }
+
+    .soft { background: linear-gradient(180deg, #35302b, #1d1a18); }
+    .kicker { font-size: 12px; color: var(--sand); letter-spacing: 0.18em; text-transform: uppercase; }
+    .title-lg { font-size: 31px; line-height: 1; margin-top: 8px; }
+    .hero-meta { margin-top: 12px; font-size: 13px; }
+    .quick { grid-template-columns: repeat(2, 1fr); margin-top: 12px; }
+
+    .btn {
+      border: 0;
+      border-radius: 18px;
+      padding: 14px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+    }
+
+    .btn.primary { background: linear-gradient(180deg, var(--rust), var(--rust-2)); color: #fff6ec; }
+    .btn.secondary { background: linear-gradient(180deg, rgba(117, 110, 100, 0.26), rgba(47, 42, 38, 0.96)); color: var(--ink); border: 1px solid var(--line); }
+
+    .grid6 { grid-template-columns: repeat(3, 1fr); margin-top: 10px; }
+    .family-tile { padding: 12px; background: linear-gradient(180deg, #3a342f, #211e1b); cursor: pointer; }
+    .family-tile.active { background: linear-gradient(180deg, rgba(182, 90, 42, 0.42), #2b211b); border-color: rgba(210, 176, 124, 0.35); }
+    .name { font-size: 16px; font-weight: 900; }
+    .en { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .small { font-size: 11px; margin-top: 6px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; color: var(--muted); }
+
+    .step-dial { display: grid; gap: 12px; }
+    .step-current { align-items: stretch; }
+
+    .current-step-no {
+      width: 68px;
+      min-width: 68px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, var(--rust), var(--rust-2));
+      color: #fff6ec;
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .current-step-title {
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .current-step-name { font-size: 22px; font-weight: 900; line-height: 1.15; margin-bottom: 4px; }
+    .step-pips { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+    .step-pip { padding: 9px 0; text-align: center; background: linear-gradient(180deg, #3a342f, #211e1b); font-size: 12px; font-weight: 800; cursor: pointer; border-radius: 14px; }
+    .step-pip.active { background: linear-gradient(180deg, rgba(182, 90, 42, 0.44), #2b211b); border-color: rgba(210, 176, 124, 0.35); color: #fff4e7; }
+    .step-neighbors { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .step-neighbor { padding: 10px 12px; background: linear-gradient(180deg, #3a342f, #211e1b); min-height: 66px; cursor: pointer; }
+    .step-neighbor.current { background: linear-gradient(180deg, rgba(255, 240, 218, 0.08), #312620); border-color: rgba(210, 176, 124, 0.35); }
+    .neighbor-kicker { color: var(--sand); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .neighbor-name { margin-top: 4px; font-size: 13px; line-height: 1.35; font-weight: 800; }
+
+    .rests { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+    .rest-notch { padding: 10px 8px 12px; text-align: center; background: linear-gradient(180deg, #3a342f, #211e1b); cursor: pointer; }
+    .rest-notch::before { content: ""; display: block; width: 2px; height: 18px; margin: 0 auto 8px; background: rgba(255, 255, 255, 0.16); }
+    .rest-notch.active { background: linear-gradient(180deg, rgba(182, 90, 42, 0.3), #2b211b); border-color: rgba(210, 176, 124, 0.35); }
+
+    .cadence {
+      padding: 18px 16px;
+      border: 1px solid rgba(239, 225, 203, 0.15);
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 38%),
+        linear-gradient(180deg, rgba(182, 90, 42, 0.3), rgba(28, 20, 15, 0.96));
+      margin-bottom: 12px;
+    }
+
+    .ring {
+      width: 246px;
+      height: 246px;
+      margin: 10px auto 12px;
+      border-radius: 50%;
+      padding: 16px;
+      background: conic-gradient(from 180deg, rgba(182, 90, 42, 0.95) 0 144deg, rgba(210, 176, 124, 0.95) 144deg 216deg, rgba(136, 145, 156, 0.95) 216deg 360deg);
+      position: relative;
+      box-shadow: 0 0 28px rgba(182, 90, 42, 0.22);
+    }
+
+    .ring::before {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: conic-gradient(from 30deg, rgba(255, 255, 255, 0.72) 0 7deg, transparent 7deg 360deg);
+      animation: spin 5s linear infinite;
+    }
+
+    .core {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.08), transparent 34%),
+        linear-gradient(180deg, rgba(26, 21, 18, 0.98), rgba(12, 12, 12, 0.98));
+    }
+
+    .phase-name { font-size: 14px; color: var(--sand); letter-spacing: 0.14em; text-transform: uppercase; }
+    .phase-second { font-size: 78px; line-height: 0.9; margin: 10px 0 8px; }
+    .cue { font-size: 18px; letter-spacing: 0.34em; text-indent: 0.34em; color: rgba(255, 245, 232, 0.78); }
+
+    .breath {
+      height: 34px;
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .breath span {
+      width: 8px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(182, 90, 42, 0.46));
+      animation: breathe 1.6s ease-in-out infinite;
+    }
+
+    .breath span:nth-child(1) { height: 10px; }
+    .breath span:nth-child(2) { height: 18px; animation-delay: 0.1s; }
+    .breath span:nth-child(3) { height: 28px; animation-delay: 0.2s; }
+    .breath span:nth-child(4) { height: 18px; animation-delay: 0.3s; }
+    .breath span:nth-child(5) { height: 10px; animation-delay: 0.4s; }
+
+    .run-bottom { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12px; margin-bottom: 12px; }
+
+    .rep-main, .rep-side {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(180deg, #494038, #211d1a);
+    }
+
+    .rep-main { text-align: center; }
+    .rep-main-value { font-size: 56px; line-height: 1; margin-top: 6px; }
+
+    .rep-side {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .metric { padding: 12px; background: linear-gradient(180deg, #494038, #211d1a); }
+    .metric .v { margin-top: 6px; font-size: 26px; font-weight: 900; line-height: 1; }
+    .metric .v.small { font-size: 18px; }
+
+    .rep {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .rep:last-child, .line:last-child { border-bottom: 0; }
+
+    .rep input {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(10, 10, 10, 0.38);
+      color: var(--ink);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .history-item { display: grid; gap: 10px; background: linear-gradient(180deg, #35302b, #1d1a18); }
+    .history-head { align-items: flex-start; }
+    .history-side { align-items: flex-start; }
+    .history-total { font-size: 32px; line-height: 1; color: #fff4e7; }
+    .history-menu { color: var(--muted); font-size: 22px; line-height: 1; padding-left: 4px; }
+    .history-subline { font-size: 13px; color: var(--muted); }
+    .history-sets { color: var(--ink); font-size: 16px; font-weight: 900; letter-spacing: 0.03em; }
+    .actions3 { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
+    .action { border: 1px solid var(--line); border-radius: 999px; padding: 9px 10px; text-align: center; font-size: 12px; background: rgba(255, 255, 255, 0.04); }
+    .line { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+
+    .frame {
+      height: 150px;
+      border: 1px dashed rgba(210, 176, 124, 0.34);
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 12px;
+      color: var(--muted);
+      background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 0 8px, transparent 8px 16px);
+      margin-top: 10px;
+      line-height: 1.7;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scaleY(0.72); opacity: 0.6; }
+      50% { transform: scaleY(1.25); opacity: 1; }
+    }
+
+    @media (max-width: 1100px) {
+      .topbar, .screens { grid-template-columns: 1fr; }
+      .device { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="topbar">
+      <div class="panel">
+        <h1>囚徒健身味道重构稿 v2.1</h1>
+        <p class="sub">这轮继续只收紧三处：首页更短，训练进行页更干净，历史列表更克制。动作标准页方向先保持不动。</p>
+        <div class="switch">
+          <div class="chip active" data-screen="home">首页</div>
+          <div class="chip" data-screen="ready">训练准备</div>
+          <div class="chip" data-screen="running">训练中</div>
+          <div class="chip" data-screen="rest">休息中</div>
+          <div class="chip" data-screen="summary">总结</div>
+          <div class="chip" data-screen="history">历史列表</div>
+          <div class="chip" data-screen="detail">历史详情</div>
+          <div class="chip" data-screen="standards">动作标准</div>
+        </div>
+      </div>
+      <div class="panel notes">
+        <h3>这轮重点</h3>
+        <ul>
+          <li>十式不再用长列表，而改成更紧凑的当前式 + 拨盘式切换。</li>
+          <li>训练进行页只保留真正应该看的信息。</li>
+          <li>历史列表不再一条记录挂三颗大按钮。</li>
+          <li>重要信息加重，不重要信息缩小、退后。</li>
+        </ul>
+      </div>
+    </section>
+    <section class="screens">
+      <div class="device">
+        <div class="screen" id="screen-home">
+          <div class="top"><span>09:41</span><span>静态审查稿</span></div>
+          <div class="bar"><h2>六艺总表</h2><div class="back">首页</div></div>
+          <div class="screen-card">
+            <div class="kicker">CURRENT DRILL</div>
+            <div class="title-lg" id="homeTitle">俯卧撑 · 第4式</div>
+            <div class="hero-meta"><span id="homeStep">半俯卧撑</span><span id="homeRest">休息 90 秒</span></div>
+            <div class="quick">
+              <div class="btn primary">进入训练</div>
+              <div class="btn secondary">动作标准</div>
+              <div class="btn secondary">训练历史</div>
+              <div class="btn secondary">本次总结</div>
+            </div>
+          </div>
+          <div class="screen-card soft">
+            <div class="section-head"><strong>六艺切换</strong><span>6 项全览</span></div>
+            <div class="grid6" id="familyGrid"></div>
+          </div>
+          <div class="screen-card soft">
+            <div class="section-head"><strong>十式切换</strong><span id="stepHead">第4式</span></div>
+            <div class="step-dial">
+              <div class="step-current">
+                <div class="current-step-no" id="currentStepNo">4</div>
+                <div class="current-step-title">
+                  <div class="current-step-name" id="currentStepName">半俯卧撑</div>
+                  <div class="meta">当前式名</div>
+                </div>
+              </div>
+              <div class="step-pips" id="stepPips"></div>
+              <div class="step-neighbors" id="stepNeighbors"></div>
+            </div>
+          </div>
+          <div class="screen-card soft">
+            <div class="section-head"><strong>组间休息</strong><span>刻度尺</span></div>
+            <div class="rests" id="restList"></div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-ready" hidden>
+          <div class="top"><span>09:41</span><span>手动开始</span></div>
+          <div class="bar"><h2>训练准备</h2><div class="back">返回</div></div>
+          <div class="screen-card">
+            <div class="kicker">READY CHECK</div>
+            <div class="title-lg" id="readyTitle">俯卧撑 · 第4式</div>
+            <div class="hero-meta"><span id="readyStep">半俯卧撑</span><span>原书节奏 2-1-2</span></div>
+          </div>
+          <div class="screen-card soft">
+            <div class="metrics">
+              <div class="metric"><div class="meta">语音提示</div><div class="v small">开启</div></div>
+              <div class="metric"><div class="meta">提示词</div><div class="v small">落 / 停 / 起</div></div>
+            </div>
+            <p class="sub">这里必须停住。用户确认后再手动点击“开始本组”。</p>
+          </div>
+          <div class="quick">
+            <div class="btn primary">开始本组</div>
+            <div class="btn secondary">动作标准</div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-running" hidden>
+          <div class="top"><span>09:41</span><span>节奏引导</span></div>
+          <div class="bar"><h2>训练执行</h2><div class="back">返回</div></div>
+          <div class="screen-card soft">
+            <div class="row"><span id="runTitle">俯卧撑 · 第4式</span><span>第 2 组</span></div>
+          </div>
+          <div class="cadence">
+            <div class="row"><span class="kicker">CADENCE CORE</span><span class="meta">语音 开启</span></div>
+            <div class="ring">
+              <div class="core">
+                <div class="phase-name">下落阶段</div>
+                <div class="phase-second">1.4</div>
+                <div class="cue">落</div>
+              </div>
+            </div>
+            <div class="breath"><span></span><span></span><span></span><span></span><span></span></div>
+          </div>
+          <div class="run-bottom">
+            <div class="rep-main">
+              <div class="meta">当前组次数</div>
+              <div class="rep-main-value">6</div>
+            </div>
+            <div class="rep-side">
+              <div>已完成 1 组</div>
+              <div>累计 13 次</div>
+            </div>
+          </div>
+          <div class="quick">
+            <div class="btn primary">结束本组</div>
+            <div class="btn secondary">结束训练</div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-rest" hidden>
+          <div class="top"><span>09:41</span><span>休息中</span></div>
+          <div class="bar"><h2>组间休息</h2><div class="back">返回</div></div>
+          <div class="screen-card soft">
+            <div class="row"><span id="restTitle">俯卧撑 · 第4式</span><span>已完成 2 组</span></div>
+            <div class="row"><span>累计 18 次</span><span id="restPreset">休息 90 秒</span></div>
+          </div>
+          <div class="screen-card">
+            <div class="kicker">REST WINDOW</div>
+            <div class="title-lg" style="font-size:34px">组间休息</div>
+            <div class="phase-second" style="font-size:72px;margin-top:14px">00:34</div>
+            <div class="meta">倒计时结束后自动进入正计时。</div>
+          </div>
+          <div class="quick">
+            <div class="btn primary">开始下一组</div>
+            <div class="btn secondary">结束本次训练</div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-summary" hidden>
+          <div class="top"><span>09:41</span><span>保存前校对</span></div>
+          <div class="bar"><h2>训练总结</h2><div class="back">返回</div></div>
+          <div class="screen-card">
+            <div class="kicker" id="summaryTitle">俯卧撑 · 第4式</div>
+            <div class="title-lg" style="font-size:32px">共 4 组 · 31 次</div>
+            <div class="hero-meta"><span>开始 09:37</span><span>结束 09:49</span></div>
+          </div>
+          <div class="screen-card soft">
+            <div class="meta" style="margin-bottom:8px">保存前可修正每组次数</div>
+            <div class="rep"><strong>第 1 组</strong><input value="8"><span class="meta">02:40 · 09:39</span></div>
+            <div class="rep"><strong>第 2 组</strong><input value="7"><span class="meta">02:15 · 09:42</span></div>
+            <div class="rep"><strong>第 3 组</strong><input value="8"><span class="meta">02:32 · 09:45</span></div>
+            <div class="rep"><strong>第 4 组</strong><input value="8"><span class="meta">02:28 · 09:49</span></div>
+          </div>
+          <div class="quick">
+            <div class="btn secondary">回到首页</div>
+            <div class="btn primary">保存到历史</div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-history" hidden>
+          <div class="top"><span>09:41</span><span>列表模式</span></div>
+          <div class="bar"><h2>训练历史</h2><div class="back">返回</div></div>
+          <div class="history-item">
+            <div class="history-head">
+              <div>
+                <strong>俯卧撑 · 半俯卧撑</strong>
+                <div class="meta">3月28日 09:49</div>
+              </div>
+              <div class="history-side">
+                <div class="history-total">31</div>
+                <div class="history-menu">⋯</div>
+              </div>
+            </div>
+            <div class="history-subline"><span class="history-sets">4 组</span><span>8 / 7 / 8 / 8</span></div>
+          </div>
+          <div class="history-item">
+            <div class="history-head">
+              <div>
+                <strong>深蹲 · 支撑深蹲</strong>
+                <div class="meta">3月27日 18:16</div>
+              </div>
+              <div class="history-side">
+                <div class="history-total">54</div>
+                <div class="history-menu">⋯</div>
+              </div>
+            </div>
+            <div class="history-subline"><span class="history-sets">5 组</span><span>12 / 11 / 10 / 11 / 10</span></div>
+          </div>
+          <div class="history-item">
+            <div class="history-head">
+              <div>
+                <strong>桥 · 直桥</strong>
+                <div class="meta">3月26日 07:21</div>
+              </div>
+              <div class="history-side">
+                <div class="history-total">15</div>
+                <div class="history-menu">⋯</div>
+              </div>
+            </div>
+            <div class="history-subline"><span class="history-sets">3 组</span><span>5 / 5 / 5</span></div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-detail" hidden>
+          <div class="top"><span>09:41</span><span>详情 + 管理</span></div>
+          <div class="bar"><h2>历史详情</h2><div class="back">返回列表</div></div>
+          <div class="screen-card">
+            <div class="kicker">俯卧撑 · 半俯卧撑</div>
+            <div class="title-lg" style="font-size:30px">共 4 组 · 31 次</div>
+            <div class="hero-meta"><span>开始 09:37</span><span>结束 09:49</span></div>
+          </div>
+          <div class="actions3" style="margin-bottom:12px">
+            <div class="action">编辑记录</div>
+            <div class="action">复制训练</div>
+            <div class="action">删除记录</div>
+          </div>
+          <div class="screen-card"><div class="row"><span>训练时长 11:58</span><span>休息 90 秒</span></div></div>
+          <div class="screen-card">
+            <div class="line">第 1 组 · 8 次 · 02:40 · 09:39</div>
+            <div class="line">第 2 组 · 7 次 · 02:15 · 09:42</div>
+            <div class="line">第 3 组 · 8 次 · 02:32 · 09:45</div>
+            <div class="line">第 4 组 · 8 次 · 02:28 · 09:49</div>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-standards" hidden>
+          <div class="top"><span>09:41</span><span>训练前快速看</span></div>
+          <div class="bar"><h2>动作标准</h2><div class="back">返回</div></div>
+          <div class="screen-card">
+            <div class="kicker" id="srcTitle">原书来源 · 第五章 · text00013.html</div>
+            <div class="title-lg" id="stdTitle">俯卧撑 · 半俯卧撑</div>
+            <div class="hero-meta"><span id="stdStep">第4式 半俯卧撑</span><span>EPUB 内容待正式接入</span></div>
+          </div>
+          <div class="screen-card soft">
+            <strong>标准说明</strong>
+            <p class="sub" style="margin-top:8px">这里将放该式来自原书的核心动作标准，不做整章阅读，只保留训练前真正需要快速复核的内容。</p>
+          </div>
+          <div class="screen-card soft">
+            <strong>动作要点 / 常见错误</strong>
+            <p class="sub" style="margin-top:8px">这里承接关键动作路径、呼吸、节奏配合、是否需要借助篮球或墙面等辅助信息。</p>
+          </div>
+          <div class="screen-card soft">
+            <strong>示意图位</strong>
+            <div class="frame">未来接入 EPUB 摘录图或用户提供的示意图。<br>图片区独立，不塞进训练执行页。</div>
+          </div>
+          <div class="quick">
+            <div class="btn primary">进入训练</div>
+            <div class="btn secondary">回到首页</div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="panel">
+          <h3>这版继续收紧</h3>
+          <ul>
+            <li>首页十式改成更紧凑的当前式 + 拨盘式切换。</li>
+            <li>训练进行页移除了不必要的说明块和时间信息。</li>
+            <li>历史列表每条记录只保留主信息和隐性管理入口。</li>
+            <li>动作标准页暂时保持正确方向，不继续改散。</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>这轮只需要判断</h3>
+          <ul>
+            <li>首页是不是比上一版更短、更利落。</li>
+            <li>十式这种紧凑切换是否比长列表更合理。</li>
+            <li>训练进行页现在是否终于不杂乱。</li>
+            <li>历史列表的信息主次是否更清楚。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    const data = {
+      pushup: { zh: "俯卧撑", en: "Pushup", chapter: "第五章 · text00013.html", steps: ["墙壁俯卧撑", "上斜俯卧撑", "膝盖俯卧撑", "半俯卧撑", "标准俯卧撑", "窄距俯卧撑", "偏重俯卧撑", "单臂半俯卧撑", "杠杆俯卧撑", "单臂俯卧撑"] },
+      squat: { zh: "深蹲", en: "Squat", chapter: "第六章 · text00014.html", steps: ["肩倒立深蹲", "折刀深蹲", "支撑深蹲", "半深蹲", "标准深蹲", "窄距深蹲", "偏重深蹲", "单腿半深蹲", "单腿辅助深蹲", "单腿深蹲"] },
+      pullup: { zh: "引体", en: "Pullup", chapter: "第七章 · text00015.html", steps: ["垂直引体", "水平引体向上", "折刀引体向上", "半引体向上", "标准引体向上", "窄距引体向上", "偏重引体向上", "单臂半引体向上", "单臂辅助引体向上", "单臂引体向上"] },
+      leg_raise: { zh: "举腿", en: "Leg Raise", chapter: "第八章 · text00016.html", steps: ["坐姿屈膝", "平卧抬膝", "平卧屈举腿", "平卧蛙举腿", "平卧直举腿", "悬垂屈膝", "悬垂屈举腿", "悬垂蛙举腿", "悬垂半举腿", "悬垂直举腿"] },
+      bridge: { zh: "桥", en: "Bridge", chapter: "第九章 · text00017.html", steps: ["短桥", "直桥", "高低桥", "顶桥", "半桥", "标准桥", "下行桥", "上行桥", "合桥", "铁板桥"] },
+      handstand_pushup: { zh: "倒立撑", en: "Handstand", chapter: "第十章 · text00018.html", steps: ["靠墙顶立", "乌鸦式", "靠墙倒立", "半倒立撑", "标准倒立撑", "窄距倒立撑", "偏重倒立撑", "单臂半倒立撑", "杠杆倒立撑", "单臂倒立撑"] }
+    };
+
+    const rests = [45, 60, 90, 120, "自定"];
+    const state = { screen: "home", family: "pushup", step: 4, rest: 90 };
+    const ids = ["home", "ready", "running", "rest", "summary", "history", "detail", "standards"];
+    const chips = [...document.querySelectorAll(".chip[data-screen]")];
+    const familyGrid = document.getElementById("familyGrid");
+    const stepPips = document.getElementById("stepPips");
+    const stepNeighbors = document.getElementById("stepNeighbors");
+    const restList = document.getElementById("restList");
+
+    const fam = () => data[state.family];
+    const stepName = () => fam().steps[state.step - 1];
+    const text = (id, value) => { document.getElementById(id).textContent = value; };
+
+    function renderFamilies() {
+      familyGrid.innerHTML = "";
+      Object.entries(data).forEach(([id, family]) => {
+        const el = document.createElement("div");
+        el.className = "family-tile" + (id === state.family ? " active" : "");
+        el.innerHTML = `<div class="name">${family.zh}</div><div class="en">${family.en}</div>`;
+        el.onclick = () => {
+          state.family = id;
+          state.step = Math.min(state.step, family.steps.length);
+          render();
+        };
+        familyGrid.appendChild(el);
+      });
+    }
+
+    function renderStepDial() {
+      const steps = fam().steps;
+      stepPips.innerHTML = "";
+      steps.forEach((_, index) => {
+        const level = index + 1;
+        const pip = document.createElement("div");
+        pip.className = "step-pip" + (level === state.step ? " active" : "");
+        pip.textContent = level;
+        pip.onclick = () => {
+          state.step = level;
+          render();
+        };
+        stepPips.appendChild(pip);
+      });
+
+      const slots = [
+        { label: "上一式", level: Math.max(1, state.step - 1) },
+        { label: "当前式", level: state.step },
+        { label: "下一式", level: Math.min(steps.length, state.step + 1) }
+      ];
+
+      stepNeighbors.innerHTML = "";
+      slots.forEach((slot) => {
+        const el = document.createElement("div");
+        const isCurrent = slot.level === state.step && slot.label === "当前式";
+        el.className = "step-neighbor" + (isCurrent ? " current" : "");
+        el.innerHTML = `<div class="neighbor-kicker">${slot.label}</div><div class="neighbor-name">第${slot.level}式 · ${steps[slot.level - 1]}</div>`;
+        el.onclick = () => {
+          state.step = slot.level;
+          render();
+        };
+        stepNeighbors.appendChild(el);
+      });
+    }
+
+    function renderRests() {
+      restList.innerHTML = "";
+      rests.forEach((value) => {
+        const el = document.createElement("div");
+        el.className = "rest-notch" + (value === state.rest ? " active" : "");
+        el.innerHTML = `<div>${typeof value === "number" ? value + "s" : value}</div>`;
+        el.onclick = () => {
+          if (typeof value === "number") {
+            state.rest = value;
+            render();
+          }
+        };
+        restList.appendChild(el);
+      });
+    }
+
+    function renderTexts() {
+      const title = `${fam().zh} · 第${state.step}式`;
+      const name = stepName();
+      text("homeTitle", title);
+      text("homeStep", name);
+      text("homeRest", `休息 ${state.rest} 秒`);
+      text("currentStepNo", state.step);
+      text("currentStepName", name);
+      text("stepHead", `第${state.step}式`);
+      text("readyTitle", title);
+      text("readyStep", name);
+      text("runTitle", title);
+      text("restTitle", title);
+      text("restPreset", `休息 ${state.rest} 秒`);
+      text("summaryTitle", title);
+      text("srcTitle", `原书来源 · ${fam().chapter}`);
+      text("stdTitle", `${fam().zh} · ${name}`);
+      text("stdStep", `第${state.step}式 ${name}`);
+    }
+
+    function renderScreens() {
+      ids.forEach((id) => {
+        document.getElementById("screen-" + id).hidden = id !== state.screen;
+      });
+      chips.forEach((chip) => {
+        chip.classList.toggle("active", chip.dataset.screen === state.screen);
+      });
+    }
+
+    chips.forEach((chip) => {
+      chip.onclick = () => {
+        state.screen = chip.dataset.screen;
+        renderScreens();
+      };
+    });
+
+    function render() {
+      renderFamilies();
+      renderStepDial();
+      renderRests();
+      renderTexts();
+      renderScreens();
+    }
+
+    render();
+  </script>
+</body>
+</html>

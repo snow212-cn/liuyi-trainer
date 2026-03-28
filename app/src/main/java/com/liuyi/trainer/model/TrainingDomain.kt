@@ -55,10 +55,10 @@ object ExerciseCatalog {
         source = "当前按用户确认的 2-1-2 节奏原型演示",
     )
 
-    private fun tenSteps(): List<MovementStep> = (1..10).map { level ->
+    private fun steps(vararg labels: String): List<MovementStep> = labels.mapIndexed { index, label ->
         MovementStep(
-            level = level,
-            label = "第${level}式",
+            level = index + 1,
+            label = label,
         )
     }
 
@@ -68,7 +68,18 @@ object ExerciseCatalog {
             titleZh = "俯卧撑",
             titleEn = "Pushup",
             summary = "上肢推力链训练，覆盖胸肩肱三头与核心协同。",
-            steps = tenSteps(),
+            steps = steps(
+                "墙壁俯卧撑",
+                "上斜俯卧撑",
+                "膝盖俯卧撑",
+                "半俯卧撑",
+                "标准俯卧撑",
+                "窄距俯卧撑",
+                "偏重俯卧撑",
+                "单臂半俯卧撑",
+                "杠杆俯卧撑",
+                "单臂俯卧撑",
+            ),
             previewCadence = previewCadence,
         ),
         MovementFamily(
@@ -76,7 +87,18 @@ object ExerciseCatalog {
             titleZh = "深蹲",
             titleEn = "Squat",
             summary = "下肢屈伸链训练，覆盖股四头、臀腿与稳定控制。",
-            steps = tenSteps(),
+            steps = steps(
+                "肩倒立深蹲",
+                "折刀深蹲",
+                "支撑深蹲",
+                "半深蹲",
+                "标准深蹲",
+                "窄距深蹲",
+                "偏重深蹲",
+                "单腿半深蹲",
+                "单腿辅助深蹲",
+                "单腿深蹲",
+            ),
             previewCadence = previewCadence,
         ),
         MovementFamily(
@@ -84,7 +106,18 @@ object ExerciseCatalog {
             titleZh = "引体",
             titleEn = "Pullup",
             summary = "上肢拉力链训练，强调背阔、前臂和肩胛控制。",
-            steps = tenSteps(),
+            steps = steps(
+                "垂直引体",
+                "水平引体向上",
+                "折刀引体向上",
+                "半引体向上",
+                "标准引体向上",
+                "窄距引体向上",
+                "偏重引体向上",
+                "单臂半引体向上",
+                "单臂辅助引体向上",
+                "单臂引体向上",
+            ),
             previewCadence = previewCadence,
         ),
         MovementFamily(
@@ -92,7 +125,18 @@ object ExerciseCatalog {
             titleZh = "举腿",
             titleEn = "Leg Raise",
             summary = "躯干前链训练，覆盖腹部、髋屈肌与骨盆控制。",
-            steps = tenSteps(),
+            steps = steps(
+                "坐姿屈膝",
+                "平卧抬膝",
+                "平卧屈举腿",
+                "平卧蛙举腿",
+                "平卧直举腿",
+                "悬垂屈膝",
+                "悬垂屈举腿",
+                "悬垂蛙举腿",
+                "悬垂半举腿",
+                "悬垂直举腿",
+            ),
             previewCadence = previewCadence,
         ),
         MovementFamily(
@@ -100,7 +144,18 @@ object ExerciseCatalog {
             titleZh = "桥",
             titleEn = "Bridge",
             summary = "躯干后链训练，强调脊柱伸展、臀部与肩部开合。",
-            steps = tenSteps(),
+            steps = steps(
+                "短桥",
+                "直桥",
+                "高低桥",
+                "顶桥",
+                "半桥",
+                "标准桥",
+                "下行桥",
+                "上行桥",
+                "合桥",
+                "铁板桥",
+            ),
             previewCadence = previewCadence,
         ),
         MovementFamily(
@@ -108,7 +163,18 @@ object ExerciseCatalog {
             titleZh = "倒立撑",
             titleEn = "Handstand Pushup",
             summary = "垂直推力链训练，强调肩部力量、平衡与全身张力。",
-            steps = tenSteps(),
+            steps = steps(
+                "靠墙顶立",
+                "乌鸦式",
+                "靠墙倒立",
+                "半倒立撑",
+                "标准倒立撑",
+                "窄距倒立撑",
+                "偏重倒立撑",
+                "单臂半倒立撑",
+                "杠杆倒立撑",
+                "单臂倒立撑",
+            ),
             previewCadence = previewCadence,
         ),
     )

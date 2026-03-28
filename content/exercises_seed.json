@@ -1,7 +1,7 @@
 {
-  "catalogVersion": 1,
-  "contentStatus": "placeholder",
-  "notice": "当前仅保留六艺十式结构与开发预览节奏，不包含书籍受保护原文、标准图片或最终节奏参数。",
+  "catalogVersion": 2,
+  "contentStatus": "draft",
+  "notice": "当前已按 EPUB 补齐六艺十式正式名称，并保留开发预览节奏。动作标准正文、示意图与最终素材仍待正式接入。",
   "cadenceProfiles": [
     {
       "id": "preview_default",
@@ -19,7 +19,18 @@
       "titleZh": "俯卧撑",
       "titleEn": "Pushup",
       "sourceChapterTitle": "第五章 俯卧撑",
-      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "steps": [
+        { "level": 1, "label": "墙壁俯卧撑" },
+        { "level": 2, "label": "上斜俯卧撑" },
+        { "level": 3, "label": "膝盖俯卧撑" },
+        { "level": 4, "label": "半俯卧撑" },
+        { "level": 5, "label": "标准俯卧撑" },
+        { "level": 6, "label": "窄距俯卧撑" },
+        { "level": 7, "label": "偏重俯卧撑" },
+        { "level": 8, "label": "单臂半俯卧撑" },
+        { "level": 9, "label": "杠杆俯卧撑" },
+        { "level": 10, "label": "单臂俯卧撑" }
+      ],
       "cadenceProfileId": "preview_default"
     },
     {
@@ -27,7 +38,18 @@
       "titleZh": "深蹲",
       "titleEn": "Squat",
       "sourceChapterTitle": "第六章 深蹲",
-      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "steps": [
+        { "level": 1, "label": "肩倒立深蹲" },
+        { "level": 2, "label": "折刀深蹲" },
+        { "level": 3, "label": "支撑深蹲" },
+        { "level": 4, "label": "半深蹲" },
+        { "level": 5, "label": "标准深蹲" },
+        { "level": 6, "label": "窄距深蹲" },
+        { "level": 7, "label": "偏重深蹲" },
+        { "level": 8, "label": "单腿半深蹲" },
+        { "level": 9, "label": "单腿辅助深蹲" },
+        { "level": 10, "label": "单腿深蹲" }
+      ],
       "cadenceProfileId": "preview_default"
     },
     {
@@ -35,7 +57,18 @@
       "titleZh": "引体",
       "titleEn": "Pullup",
       "sourceChapterTitle": "第七章 引体向上",
-      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "steps": [
+        { "level": 1, "label": "垂直引体" },
+        { "level": 2, "label": "水平引体向上" },
+        { "level": 3, "label": "折刀引体向上" },
+        { "level": 4, "label": "半引体向上" },
+        { "level": 5, "label": "标准引体向上" },
+        { "level": 6, "label": "窄距引体向上" },
+        { "level": 7, "label": "偏重引体向上" },
+        { "level": 8, "label": "单臂半引体向上" },
+        { "level": 9, "label": "单臂辅助引体向上" },
+        { "level": 10, "label": "单臂引体向上" }
+      ],
       "cadenceProfileId": "preview_default"
     },
     {
@@ -43,7 +76,18 @@
       "titleZh": "举腿",
       "titleEn": "Leg Raise",
       "sourceChapterTitle": "第八章 举腿",
-      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "steps": [
+        { "level": 1, "label": "坐姿屈膝" },
+        { "level": 2, "label": "平卧抬膝" },
+        { "level": 3, "label": "平卧屈举腿" },
+        { "level": 4, "label": "平卧蛙举腿" },
+        { "level": 5, "label": "平卧直举腿" },
+        { "level": 6, "label": "悬垂屈膝" },
+        { "level": 7, "label": "悬垂屈举腿" },
+        { "level": 8, "label": "悬垂蛙举腿" },
+        { "level": 9, "label": "悬垂半举腿" },
+        { "level": 10, "label": "悬垂直举腿" }
+      ],
       "cadenceProfileId": "preview_default"
     },
     {
@@ -51,7 +95,18 @@
       "titleZh": "桥",
       "titleEn": "Bridge",
       "sourceChapterTitle": "第九章 桥",
-      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "steps": [
+        { "level": 1, "label": "短桥" },
+        { "level": 2, "label": "直桥" },
+        { "level": 3, "label": "高低桥" },
+        { "level": 4, "label": "顶桥" },
+        { "level": 5, "label": "半桥" },
+        { "level": 6, "label": "标准桥" },
+        { "level": 7, "label": "下行桥" },
+        { "level": 8, "label": "上行桥" },
+        { "level": 9, "label": "合桥" },
+        { "level": 10, "label": "铁板桥" }
+      ],
       "cadenceProfileId": "preview_default"
     },
     {
@@ -59,7 +114,18 @@
       "titleZh": "倒立撑",
       "titleEn": "Handstand Pushup",
       "sourceChapterTitle": "第十章 倒立撑",
-      "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "steps": [
+        { "level": 1, "label": "靠墙顶立" },
+        { "level": 2, "label": "乌鸦式" },
+        { "level": 3, "label": "靠墙倒立" },
+        { "level": 4, "label": "半倒立撑" },
+        { "level": 5, "label": "标准倒立撑" },
+        { "level": 6, "label": "窄距倒立撑" },
+        { "level": 7, "label": "偏重倒立撑" },
+        { "level": 8, "label": "单臂半倒立撑" },
+        { "level": 9, "label": "杠杆倒立撑" },
+        { "level": 10, "label": "单臂倒立撑" }
+      ],
       "cadenceProfileId": "preview_default"
     }
   ]

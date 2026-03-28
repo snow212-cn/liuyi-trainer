@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,7 +53,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                CompactHeaderCard(
+                HomeHeaderCard(
                     family = selectedFamily,
                     step = selectedStep,
                     restPresetSeconds = restPresetSeconds,
@@ -68,17 +70,12 @@ fun HomeScreen(
                 SectionTitle("六艺")
             }
 
-            families.forEach { family ->
-                item {
-                    ChoiceCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        title = family.titleZh,
-                        subtitle = family.titleEn,
-                        meta = if (family.id == selectedFamily.id) "当前" else "点击选择",
-                        selected = family.id == selectedFamily.id,
-                        onClick = { onSelectFamily(family.id) },
-                    )
-                }
+            item {
+                FamilyGrid(
+                    families = families,
+                    selectedFamilyId = selectedFamily.id,
+                    onSelectFamily = onSelectFamily,
+                )
             }
 
             item {
@@ -86,9 +83,9 @@ fun HomeScreen(
             }
 
             item {
-                StepSelector(
+                CompactStepSelector(
                     steps = selectedFamily.steps,
-                    selectedStepLevel = selectedStep.level,
+                    selectedStep = selectedStep,
                     onSelectStep = onSelectStep,
                 )
             }
@@ -98,7 +95,7 @@ fun HomeScreen(
             }
 
             item {
-                RestPresetSelector(
+                CompactRestPresetSelector(
                     restPresetOptions = restPresetOptions,
                     selectedRestPresetSeconds = restPresetSeconds,
                     onSelectRestPreset = onSelectRestPreset,
@@ -109,7 +106,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun CompactHeaderCard(
+private fun HomeHeaderCard(
     family: MovementFamily,
     step: MovementStep,
     restPresetSeconds: Int,
@@ -137,12 +134,17 @@ private fun CompactHeaderCard(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "${family.titleZh} · ${step.label}",
-                style = MaterialTheme.typography.displaySmall,
+                text = "${family.titleZh} · 第${step.level}式",
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "节奏 $cadenceLabel · 每次循环 ${cadenceSeconds} 秒 · 休息 ${restPresetSeconds} 秒",
+                text = step.label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "节奏 $cadenceLabel · ${cadenceSeconds} 秒/次 · 休息 ${restPresetSeconds} 秒",
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -152,34 +154,74 @@ private fun CompactHeaderCard(
             ) {
                 Text("进入训练")
             }
-            FilledTonalButton(
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenStandards,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("动作标准")
+                FilledTonalButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onOpenStandards,
+                ) {
+                    Text("动作标准")
+                }
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onOpenHistory,
+                ) {
+                    Text("训练历史")
+                }
             }
+
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenSummary,
             ) {
                 Text("当前总结")
             }
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenHistory,
-            ) {
-                Text("训练历史")
+        }
+    }
+}
+
+@Composable
+private fun FamilyGrid(
+    families: List<MovementFamily>,
+    selectedFamilyId: String,
+    onSelectFamily: (String) -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            families.chunked(3).forEach { rowFamilies ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    rowFamilies.forEach { family ->
+                        FamilyChoiceCell(
+                            modifier = Modifier.weight(1f),
+                            family = family,
+                            selected = family.id == selectedFamilyId,
+                            onClick = { onSelectFamily(family.id) },
+                        )
+                    }
+                    repeat(3 - rowFamilies.size) {
+                        Row(modifier = Modifier.weight(1f)) {}
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ChoiceCard(
+private fun FamilyChoiceCell(
     modifier: Modifier = Modifier,
-    title: String,
-    subtitle: String,
-    meta: String,
+    family: MovementFamily,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -190,36 +232,187 @@ private fun ChoiceCard(
     }
 
     Card(
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 74.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         onClick = onClick,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
+                text = family.titleZh,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = subtitle,
+                text = family.titleEn,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = meta,
-                style = MaterialTheme.typography.labelLarge,
             )
         }
     }
 }
 
 @Composable
-private fun RestPresetSelector(
+private fun CompactStepSelector(
+    steps: List<MovementStep>,
+    selectedStep: MovementStep,
+    onSelectStep: (Int) -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Card(
+                    modifier = Modifier.width(68.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 14.dp),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = selectedStep.level.toString(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally),
+                        )
+                    }
+                }
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = "第${selectedStep.level}式",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Text(
+                            text = selectedStep.label,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                steps.forEach { step ->
+                    val selected = step.level == selectedStep.level
+                    if (selected) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSelectStep(step.level) },
+                            contentPadding = PaddingValues(vertical = 10.dp),
+                        ) {
+                            Text(step.level.toString())
+                        }
+                    } else {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSelectStep(step.level) },
+                            contentPadding = PaddingValues(vertical = 10.dp),
+                        ) {
+                            Text(step.level.toString())
+                        }
+                    }
+                }
+            }
+
+            val previousStep = steps.getOrNull((selectedStep.level - 2).coerceAtLeast(0))
+            val nextStep = steps.getOrNull(selectedStep.level)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StepNameHint(
+                    modifier = Modifier.weight(1f),
+                    title = "上一式",
+                    step = previousStep ?: selectedStep,
+                    onClick = { onSelectStep(previousStep?.level ?: selectedStep.level) },
+                )
+                StepNameHint(
+                    modifier = Modifier.weight(1f),
+                    title = "当前式",
+                    step = selectedStep,
+                    onClick = { onSelectStep(selectedStep.level) },
+                )
+                StepNameHint(
+                    modifier = Modifier.weight(1f),
+                    title = "下一式",
+                    step = nextStep ?: selectedStep,
+                    onClick = { onSelectStep(nextStep?.level ?: selectedStep.level) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepNameHint(
+    modifier: Modifier = Modifier,
+    title: String,
+    step: MovementStep,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                text = "第${step.level}式",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = step.label,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactRestPresetSelector(
     restPresetOptions: List<Int>,
     selectedRestPresetSeconds: Int,
     onSelectRestPreset: (Int) -> Unit,
@@ -231,65 +424,27 @@ private fun RestPresetSelector(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            restPresetOptions.chunked(3).forEach { rowOptions ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    rowOptions.forEach { seconds ->
-                        val selected = seconds == selectedRestPresetSeconds
-                        if (selected) {
-                            Button(
-                                onClick = { onSelectRestPreset(seconds) },
-                            ) {
-                                Text("${seconds}s")
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = { onSelectRestPreset(seconds) },
-                            ) {
-                                Text("${seconds}s")
-                            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                restPresetOptions.forEach { seconds ->
+                    val selected = seconds == selectedRestPresetSeconds
+                    if (selected) {
+                        Button(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSelectRestPreset(seconds) },
+                            contentPadding = PaddingValues(vertical = 10.dp),
+                        ) {
+                            Text("${seconds}s")
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepSelector(
-    steps: List<MovementStep>,
-    selectedStepLevel: Int,
-    onSelectStep: (Int) -> Unit,
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            steps.chunked(5).forEach { rowSteps ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    rowSteps.forEach { step ->
-                        val selected = step.level == selectedStepLevel
-                        if (selected) {
-                            Button(
-                                onClick = { onSelectStep(step.level) },
-                            ) {
-                                Text(step.level.toString())
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = { onSelectStep(step.level) },
-                            ) {
-                                Text(step.level.toString())
-                            }
+                    } else {
+                        OutlinedButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSelectRestPreset(seconds) },
+                            contentPadding = PaddingValues(vertical = 10.dp),
+                        ) {
+                            Text("${seconds}s")
                         }
                     }
                 }

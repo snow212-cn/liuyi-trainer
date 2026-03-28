@@ -1,101 +1,76 @@
 # 当前状态与路线校正
 
-日期：2026-03-27
+日期：2026-03-28
 
 ## 1. 当前结论
 
-路线已经校正回来了，当前不再停留在“纯静态页面骨架”阶段。
+当前官方路线仍然是：
 
-目前真实进度是：
+1. 先把静态界面稿压到用户认可
+2. 再把同样方向落回 Android Compose
+3. 最后再做真实构建与 APK 验证
 
-- 首页已支持选择艺、式和休息预设
-- 训练页、休息页、总结页已经从真实会话状态取数
-- 应用层状态已收敛到 `LiuyiTrainerViewModel`
-- 历史记录列表页已接入导航，并读取持久化数据
-- 动作标准页仍然是正式结构加占位内容
+这轮继续沿着这个路线推进，没有回到旧 Android 视觉上盲改。
 
-## 2. 当前认可的成果
+## 2. 本轮新增成果
 
-- 轻量演示已可用于需求确认
-- `2-1-2` 实时节奏引导规则已落地到原型与 Android 领域层
-- 组间休息倒计时，超时后转正计时的规则已落地
-- Android 训练状态机已建立：
-  - `Idle`
-  - `SetRunning`
-  - `RestRunning`
-  - `RestOvertime`
-  - `Completed`
-- 训练完成后保存历史记录的入口已建立
-- 历史记录页已能展示最近训练数据
-- 历史记录页已细化为每次训练卡片，并展示每组次数、每组时长、结束时间
-- Gradle Wrapper 文件已补齐：
-  - `gradlew`
-  - `gradlew.bat`
-  - `gradle/wrapper/gradle-wrapper.jar`
-- GitHub Actions 远程调试版 APK 构建流程已建立
-- GitHub Actions 已切到更省时的调试模式：
-  - 保持原有 `on:` 条件不变
-  - 自动取消同分支旧任务
-  - 启用 Gradle 缓存
-- 调试版 Release 固定为 `debug-latest`，并覆盖同名 APK 文件
-- 已修正一个真实编译阻塞点：`Room.databaseBuilder(...)` 命名参数错误
-- 已修正第一次云端构建暴露的问题：移除 AGP 9 不支持的 `android.kotlinOptions{}`
-- 已修正第二次云端构建暴露的问题：XML 主题不应引用未引入依赖提供的 `Theme.Material3.DayNight.NoActionBar`
-- 已按 AGP 9 要求移除 `org.jetbrains.kotlin.android`，并改用 `com.android.legacy-kapt`
-- UI 重构已开始落地：
-  - 首页改为统一六艺十式选择
-  - 训练前改为准备页，不再自动开练
-  - 训练执行页加入语音提示开关
-  - 总结页改为保存前可编辑
-  - 历史页改为列表页 + 详情页
+- 已用用户提供的 EPUB 确认六艺章节映射：
+  - 俯卧撑：`text00013.html`
+  - 深蹲：`text00014.html`
+  - 引体向上：`text00015.html`
+  - 举腿：`text00016.html`
+  - 桥：`text00017.html`
+  - 倒立撑：`text00018.html`
+- 已从 EPUB 补齐六艺十式正式名称
+- 已把正式名称写入：
+  - `content/exercises_seed.json`
+  - `app/src/main/java/com/liuyi/trainer/model/TrainingDomain.kt`
+- 已重写 UI 蓝图为 v2：
+  - `docs/product/ui-redesign-blueprint.md`
+- 已重做静态审查稿 v2：
+  - `prototype/ui-redesign.html`
+- 已根据新反馈继续收紧为 v2.1 方向：
+  - 首页十式由长列表改为更紧凑的当前式 + 拨盘式切换
+  - 训练进行页移除多余说明块、开始时间等低价值信息
+  - 历史列表页移除每条记录的三按钮外露布局
 
-## 3. 当前仍未完成的内容
+## 3. 这轮静态稿的核心变化
 
-- 本机没有 Android SDK，尚未真正编译 Android App
-- APK 还没有产出
-- Gradle 发行包尚未完整下载到本机缓存
-- Room 所需的构建链路还未经过真实编译校验
-- 动作标准正式内容、示意图、音频素材尚未正式接入
-- GitHub 远程构建已多次运行，但还没重新验证本轮主题修复后的结果
-- 这轮 UI 重构尚未经过真实 Android 编译和真机试用
+- 首页改成更短的“训练指挥台”
+- 十式改为正式名称轨道列表，不再使用十个数字按钮
+- 组间休息选择改为更紧凑的刻度式表现
+- 训练进行页加入图形化节奏引导：
+  - 环形节奏盘
+  - 相位轨道
+  - 呼吸脉冲条
+- 历史列表页与详情页显式预留：
+  - 编辑
+  - 删除
+  - 复制训练
+- 动作标准页显式标出原书章节来源，并预留正文与示意图位
 
-## 4. 当前代码定性
+## 4. 当前没有做的事
 
-以下文件已不只是“参考骨架”，而是当前正式实现的一部分：
+- 这轮没有继续改 Android Compose 页面视觉实现
+- 这轮没有做 Android 本地编译
+- 这轮没有产出 APK
+- 这轮没有接入正式动作正文、示意图、音频素材
 
-- `app/src/main/java/com/liuyi/trainer/app/LiuyiTrainerApp.kt`
-- `app/src/main/java/com/liuyi/trainer/app/LiuyiTrainerViewModel.kt`
-- `app/src/main/java/com/liuyi/trainer/model/TrainingSessionEngine.kt`
-- `app/src/main/java/com/liuyi/trainer/ui/HomeScreen.kt`
-- `app/src/main/java/com/liuyi/trainer/ui/TrainingFlowScreens.kt`
-- `app/src/main/java/com/liuyi/trainer/data/TrainingHistoryRepository.kt`
+## 5. 当前未完成事项
 
-## 5. 当前禁止偏航的方向
+- 用户仍需先审查 `prototype/ui-redesign.html`
+- 用户确认后，才继续把 v2 方向落回 Android 页面
+- 本机 Android SDK 仍未补齐
+- 真实构建链路仍未完成校验
 
-- 不要继续扩张只靠样例数据驱动的静态页面
-- 不要把“页面数量变多”误判为“功能完成”
-- 不要在没有构建验证的情况下宣称 Android 已可交付
+## 6. 当前禁止偏航的方向
 
-## 6. 官方下一步
+- 不要再回到旧首页和旧视觉风格上修补
+- 不要把“Android 页面已有代码”误判为“视觉方向已定稿”
+- 不要在没有构建验证的情况下宣称 App 已可交付
 
-从现在开始，官方路线统一为：
+## 7. 官方下一步
 
-1. 先完成这轮 UI 重构的编译验证与试用反馈
-2. 根据第一次试用反馈继续收紧训练页视觉层级
-3. 再接动作标准正式内容
-4. 然后继续 GitHub 远程构建验证
-
-## 7. 以后如何判断 AI 是否偏离路线
-
-以后只看四个文件：
-
-- `docs/product/srs.md`
-- `docs/product/ux-training-screen.md`
-- `docs/process/current-status.md`
-- `docs/process/handoff.md`
-
-如果某次回复偏离：
-
-- 先以仓库代码与文档为准
-- 再判断是保留、修正还是放弃
-- 不以聊天里自我描述为准
+1. 让用户继续审查 `OPEN_UI_REDESIGN.bat` 打开的 v2 静态稿
+2. 只根据这轮反馈继续收紧首页、训练进行页、历史页、动作标准页
+3. 用户确认后，再重做 Android 正式 UI

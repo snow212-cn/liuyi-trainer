@@ -106,7 +106,7 @@ class LiuyiTrainerViewModel(
         restPresetSeconds = seconds
     }
 
-    fun setSpeechEnabled(enabled: Boolean) {
+    fun updateSpeechEnabled(enabled: Boolean) {
         speechEnabled = enabled
     }
 

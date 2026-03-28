@@ -81,7 +81,7 @@ fun LiuyiTrainerApp(
                         nowUtc = appViewModel.nowUtc,
                     ),
                     speechEnabled = appViewModel.speechEnabled,
-                    onToggleSpeech = appViewModel::setSpeechEnabled,
+                    onToggleSpeech = appViewModel::updateSpeechEnabled,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -103,7 +103,7 @@ fun LiuyiTrainerApp(
                         cadenceSeconds = ExerciseCatalog.previewCadence.cycleDurationMs / 1000,
                     ),
                     speechEnabled = appViewModel.speechEnabled,
-                    onToggleSpeech = appViewModel::setSpeechEnabled,
+                    onToggleSpeech = appViewModel::updateSpeechEnabled,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },

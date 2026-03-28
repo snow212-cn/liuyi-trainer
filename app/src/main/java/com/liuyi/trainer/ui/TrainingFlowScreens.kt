@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope.weight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -183,22 +182,17 @@ fun TrainingReadyScreen(
                 onToggle = { onToggleSpeech(!speechEnabled) },
             )
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onStartSet,
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onStartSet,
-                ) {
-                    Text("开始本组")
-                }
-                FilledTonalButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenStandards,
-                ) {
-                    Text("动作标准")
-                }
+                Text("开始本组")
+            }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenStandards,
+            ) {
+                Text("动作标准")
             }
         }
     }
@@ -269,22 +263,17 @@ fun TrainingRunningScreen(
                 ),
             )
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onFinishSet,
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onFinishSet,
-                ) {
-                    Text("结束本组")
-                }
-                FilledTonalButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onCompleteTraining,
-                ) {
-                    Text("结束训练")
-                }
+                Text("结束本组")
+            }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onCompleteTraining,
+            ) {
+                Text("结束训练")
             }
         }
     }
@@ -326,22 +315,17 @@ fun TrainingRestScreen(
                 supporting = preview.restHint,
             )
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onStartNextSet,
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onStartNextSet,
-                ) {
-                    Text("开始下一组")
-                }
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onCompleteTraining,
-                ) {
-                    Text("结束本次训练")
-                }
+                Text("开始下一组")
+            }
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onCompleteTraining,
+            ) {
+                Text("结束本次训练")
             }
         }
     }
@@ -441,22 +425,17 @@ fun TrainingSummaryScreen(
                 }
             }
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onBackHome,
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onBackHome,
-                ) {
-                    Text("回到首页")
-                }
-                FilledTonalButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenHistory,
-                ) {
-                    Text(if (preview.isSaved) "查看历史" else "历史列表")
-                }
+                Text("回到首页")
+            }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenHistory,
+            ) {
+                Text(if (preview.isSaved) "查看历史" else "历史列表")
             }
 
             if (preview.isEditable && !preview.isSaved) {
@@ -538,22 +517,17 @@ fun StandardsScreen(
                 }
             }
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onBackHome,
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onBackHome,
-                ) {
-                    Text("回到首页")
-                }
-                FilledTonalButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenTraining,
-                ) {
-                    Text("进入训练")
-                }
+                Text("回到首页")
+            }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenTraining,
+            ) {
+                Text("进入训练")
             }
         }
     }
@@ -1134,7 +1108,7 @@ private fun SettingToggleCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(0.75f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(

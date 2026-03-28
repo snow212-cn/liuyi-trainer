@@ -4,13 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope.weight
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,27 +68,16 @@ fun HomeScreen(
                 SectionTitle("六艺")
             }
 
-            items(
-                items = families.chunked(2),
-                key = { row -> row.joinToString(separator = "-") { it.id } },
-            ) { rowFamilies ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    rowFamilies.forEach { family ->
-                        ChoiceCard(
-                            modifier = Modifier.weight(1f),
-                            title = family.titleZh,
-                            subtitle = family.titleEn,
-                            meta = if (family.id == selectedFamily.id) "当前" else "点击选择",
-                            selected = family.id == selectedFamily.id,
-                            onClick = { onSelectFamily(family.id) },
-                        )
-                    }
-                    repeat(2 - rowFamilies.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+            families.forEach { family ->
+                item {
+                    ChoiceCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        title = family.titleZh,
+                        subtitle = family.titleEn,
+                        meta = if (family.id == selectedFamily.id) "当前" else "点击选择",
+                        selected = family.id == selectedFamily.id,
+                        onClick = { onSelectFamily(family.id) },
+                    )
                 }
             }
 
@@ -160,40 +146,29 @@ private fun CompactHeaderCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onStartTraining,
             ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onStartTraining,
-                ) {
-                    Text("进入训练")
-                }
-                FilledTonalButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenStandards,
-                ) {
-                    Text("动作标准")
-                }
+                Text("进入训练")
             }
-
-            Row(
+            FilledTonalButton(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                onClick = onOpenStandards,
             ) {
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenSummary,
-                ) {
-                    Text("当前总结")
-                }
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = onOpenHistory,
-                ) {
-                    Text("训练历史")
-                }
+                Text("动作标准")
+            }
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenSummary,
+            ) {
+                Text("当前总结")
+            }
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenHistory,
+            ) {
+                Text("训练历史")
             }
         }
     }
@@ -265,22 +240,17 @@ private fun RestPresetSelector(
                         val selected = seconds == selectedRestPresetSeconds
                         if (selected) {
                             Button(
-                                modifier = Modifier.weight(1f),
                                 onClick = { onSelectRestPreset(seconds) },
                             ) {
                                 Text("${seconds}s")
                             }
                         } else {
                             OutlinedButton(
-                                modifier = Modifier.weight(1f),
                                 onClick = { onSelectRestPreset(seconds) },
                             ) {
                                 Text("${seconds}s")
                             }
                         }
-                    }
-                    repeat(3 - rowOptions.size) {
-                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -310,14 +280,12 @@ private fun StepSelector(
                         val selected = step.level == selectedStepLevel
                         if (selected) {
                             Button(
-                                modifier = Modifier.weight(1f),
                                 onClick = { onSelectStep(step.level) },
                             ) {
                                 Text(step.level.toString())
                             }
                         } else {
                             OutlinedButton(
-                                modifier = Modifier.weight(1f),
                                 onClick = { onSelectStep(step.level) },
                             ) {
                                 Text(step.level.toString())

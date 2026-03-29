@@ -8,4 +8,4 @@ captures/
 *.iml
 *.keystore
 *.jks
-*.tar
+backup/

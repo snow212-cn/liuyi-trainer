@@ -92,3 +92,5 @@
 - `ANDROID_KEY_PASSWORD`: 该 alias 对应的 key password
 
 其中关键的是：后续用于发布的 keystore 必须和手机里已安装那一版 APK 的签名私钥相同。若当前安装包的私钥已经丢失，Android 不允许无损覆盖安装，只能先备份应用数据，再卸载重装。
+
+若需要做一次性数据迁移，可临时把仓库变量 `ANDROID_RELEASE_DEBUGGABLE` 设为 `true`，让 CI 产出“使用正式签名但允许 `adb run-as`”的迁移版 `release` APK。迁移完成后应立即把该变量改回空或删除，再重新构建正式包。

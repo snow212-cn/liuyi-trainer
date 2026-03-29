@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -339,6 +341,32 @@ fun TrainingRestScreen(
                 supporting = preview.restHint,
             )
 
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TrainingPrepLine(
+                        label = "已完成组数",
+                        value = "${preview.completedSetCount} 组",
+                    )
+                    TrainingPrepLine(
+                        label = "累计次数",
+                        value = "${preview.totalRepCount} 次",
+                    )
+                    TrainingPrepLine(
+                        label = "休息预设",
+                        value = preview.presetLabel,
+                    )
+                }
+            }
+
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onStartNextSet,
@@ -449,6 +477,15 @@ fun TrainingSummaryScreen(
                 }
             }
 
+            CompactInfoCard(
+                title = "当前结果",
+                lines = listOf(
+                    "总组数 ${preview.totalSets} 组",
+                    "总次数 ${preview.totalReps} 次",
+                    if (preview.isSaved) "本条记录已写入历史" else "保存前仍可逐组修正次数",
+                ),
+            )
+
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onBackHome,
@@ -495,37 +532,25 @@ fun StandardsScreen(
                 onAction = onBack,
             )
 
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    StatusBadge(label = preview.contentStatusLabel)
-                    Text(
-                        text = preview.statusHint,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            FocusMetricCard(
+                eyebrow = "SOURCE DRILL",
+                title = "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                metric = preview.sections.firstOrNull()?.second ?: "原书章节",
+                supporting = preview.statusHint,
+            )
 
-            preview.sections.forEach { (title, body) ->
-                Card {
+            StatusBadge(label = preview.contentStatusLabel)
+
+            preview.sections.drop(1).forEach { (title, body) ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                        .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
@@ -541,17 +566,51 @@ fun StandardsScreen(
                 }
             }
 
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onBackHome,
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
             ) {
-                Text("回到首页")
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "示意图位",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "未来接入原书示意图或提炼后的动作图",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
-            FilledTonalButton(
+
+            Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenTraining,
             ) {
                 Text("进入训练")
+            }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onBackHome,
+            ) {
+                Text("回到首页")
             }
         }
     }
@@ -565,74 +624,47 @@ fun TrainingHistoryScreen(
     onOpenDetail: (Long) -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 16.dp,
+                vertical = 20.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            HeaderRow(
-                title = "训练历史",
-                action = "返回上一页",
-                onAction = onBack,
-            )
+            item {
+                HeaderRow(
+                    title = "训练历史",
+                    action = "返回上一页",
+                    onAction = onBack,
+                )
+            }
 
             if (preview.rows.isEmpty()) {
-                FocusMetricCard(
-                    eyebrow = "暂无数据",
-                    title = "还没有历史记录",
-                    metric = "先完成一次训练",
-                    supporting = "保存后的训练会以可点击列表的形式出现在这里。",
-                )
+                item {
+                    FocusMetricCard(
+                        eyebrow = "暂无数据",
+                        title = "还没有历史记录",
+                        metric = "先完成一次训练",
+                        supporting = "保存后的训练会以可点击列表的形式出现在这里。",
+                    )
+                }
             } else {
-                preview.rows.forEach { row ->
-                    Card(onClick = { onOpenDetail(row.sessionId) }) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = row.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            HistorySetBand(setPreview = row.setPreview)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = row.totalsLabel,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = row.dateLabel,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
+                items(preview.rows, key = { it.sessionId }) { row ->
+                    HistoryRowCard(
+                        preview = row,
+                        onOpenDetail = { onOpenDetail(row.sessionId) },
+                    )
                 }
             }
 
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onBackHome,
-            ) {
-                Text("回到首页")
+            item {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onBackHome,
+                ) {
+                    Text("回到首页")
+                }
             }
         }
     }
@@ -716,10 +748,18 @@ fun TrainingHistoryDetailScreen(
                         )
                         preview.setDetails.forEachIndexed { index, detail ->
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = detail,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                ) {
+                                    Text(
+                                        text = detail,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
                                 if (index != preview.setDetails.lastIndex) {
                                     HorizontalDivider()
                                 }
@@ -911,8 +951,9 @@ fun buildStandardsPreview(context: ExerciseContext): StandardsPreview {
         statusHint = hint,
         sections = listOf(
             "原书来源" to sourceChapterTitle(context.family.id),
-            "当前接入策略" to "优先接动作标准、训练要点、常见错误和示意图位置；不在当前阶段盲目整本照搬。",
-            "训练要点" to "训练前快速浏览，训练中不占据主视觉。内容结构已经预留，下一步可按你给出的原书内容继续填充。",
+            "标准说明" to "这里将承接该式来自原书的核心动作标准，只保留训练前真正需要快速复核的内容。",
+            "动作要点" to "未来会放入动作路径、发力顺序、呼吸与节奏配合，以及是否需要借助墙面、篮球或其他辅助。",
+            "常见错误" to "未来会单独提炼容易出错的姿势、代偿与节奏问题，避免把整章内容直接塞进训练页。",
         ),
     )
 }
@@ -1376,6 +1417,55 @@ private fun TrainingPrepLine(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.End,
         )
+    }
+}
+
+@Composable
+private fun HistoryRowCard(
+    preview: HistoryRowPreview,
+    onOpenDetail: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        onClick = onOpenDetail,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = preview.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = preview.dateLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = preview.totalsLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                )
+            }
+            HistorySetBand(setPreview = preview.setPreview)
+        }
     }
 }
 

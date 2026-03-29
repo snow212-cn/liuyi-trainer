@@ -405,41 +405,40 @@ private fun StepDialCard(
             }
         }
 
-        currentStepRange().chunked(5).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                row.forEach { level ->
-                    val selected = level == currentStep.level
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
-                        ),
-                        border = if (selected) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            currentStepRange().forEach { level ->
+                val selected = level == currentStep.level
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(if (selected) 42.dp else 34.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selected) {
+                            MaterialTheme.colorScheme.primary
                         } else {
-                            null
+                            MaterialTheme.colorScheme.surfaceVariant
                         },
-                        onClick = { onSelectStep(level) },
+                    ),
+                    onClick = { onSelectStep(level) },
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = level.toString(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        Text(
+                            text = level.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
                     }
                 }
             }

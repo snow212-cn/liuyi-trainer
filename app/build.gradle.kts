@@ -15,9 +15,6 @@ fun Project.optionalBuildValue(name: String): String? =
 
 val configuredVersionCode = project.optionalBuildValue("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
 val configuredVersionName = project.optionalBuildValue("ANDROID_VERSION_NAME") ?: "0.1.0"
-val releaseDebuggable = project.optionalBuildValue("ANDROID_RELEASE_DEBUGGABLE")
-    ?.trim()
-    ?.equals("true", ignoreCase = true) == true
 
 val signingStoreFilePath = project.optionalBuildValue("ANDROID_SIGNING_STORE_FILE")
 val signingStorePassword = project.optionalBuildValue("ANDROID_SIGNING_STORE_PASSWORD")
@@ -66,12 +63,22 @@ android {
         }
 
         release {
-            isDebuggable = releaseDebuggable
+            isDebuggable = false
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (hasStableSigning) {
+                signingConfig = signingConfigs.getByName("stable")
+            }
+        }
+
+        create("migration") {
+            initWith(getByName("release"))
+            isDebuggable = true
+            versionNameSuffix = "-migration"
+            matchingFallbacks += listOf("release")
             if (hasStableSigning) {
                 signingConfig = signingConfigs.getByName("stable")
             }

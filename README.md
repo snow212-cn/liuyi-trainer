@@ -93,4 +93,4 @@
 
 其中关键的是：后续用于发布的 keystore 必须和手机里已安装那一版 APK 的签名私钥相同。若当前安装包的私钥已经丢失，Android 不允许无损覆盖安装，只能先备份应用数据，再卸载重装。
 
-若需要做一次性数据迁移，可临时把仓库变量 `ANDROID_RELEASE_DEBUGGABLE` 设为 `true`，让 CI 产出“使用正式签名但允许 `adb run-as`”的迁移版 `release` APK。迁移完成后应立即把该变量改回空或删除，再重新构建正式包。
+若需要做一次性数据迁移，请在 GitHub Actions 页面手动运行工作流，并把 `build_mode` 选择为 `migration`。CI 会产出独立的 `migration` APK：它仍使用正式签名，但会显式开启 `debuggable`，且工作流会在发布前校验 manifest 中确实存在 `android:debuggable`。日常 push 默认产出稳定 `release`；若缺少签名 secrets，则回退为 `debug`。迁移完成后，再手动运行一次并把 `build_mode` 选回 `release`。

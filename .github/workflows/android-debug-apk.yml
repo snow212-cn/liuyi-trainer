@@ -2,6 +2,16 @@ name: Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      build_mode:
+        description: "APK build mode"
+        required: true
+        default: release
+        type: choice
+        options:
+          - release
+          - migration
+          - debug
   push:
     branches:
       - main
@@ -76,24 +86,64 @@ jobs:
         id: build_variant
         shell: bash
         run: |
+          requested_mode="${{ github.event.inputs.build_mode }}"
+          if [ -z "${requested_mode}" ]; then
+            requested_mode="release"
+          fi
+
+          echo "Requested build mode: ${requested_mode}"
+
+          has_signing="false"
           if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && \
              [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && \
              [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && \
              [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
+            has_signing="true"
             echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "${GITHUB_WORKSPACE}/ci-signing.jks"
-            echo "gradle_task=:app:assembleRelease" >> "${GITHUB_OUTPUT}"
-            echo "artifact_name=liuyi-trainer-release-apk" >> "${GITHUB_OUTPUT}"
-            echo "apk_glob=app/build/outputs/apk/release/*.apk" >> "${GITHUB_OUTPUT}"
-            echo "release_tag=stable-latest" >> "${GITHUB_OUTPUT}"
-            echo "release_name=Liuyi Trainer Stable APK" >> "${GITHUB_OUTPUT}"
-            echo "release_body=自动更新的稳定签名 APK 下载页。" >> "${GITHUB_OUTPUT}"
-          else
+          fi
+
+          if [ "${requested_mode}" = "migration" ]; then
+            if [ "${has_signing}" != "true" ]; then
+              echo "Migration build requires signing secrets."
+              exit 1
+            fi
+            echo "gradle_task=:app:assembleMigration" >> "${GITHUB_OUTPUT}"
+            echo "artifact_name=liuyi-trainer-migration-apk" >> "${GITHUB_OUTPUT}"
+            echo "apk_glob=app/build/outputs/apk/migration/*.apk" >> "${GITHUB_OUTPUT}"
+            echo "release_tag=migration-latest" >> "${GITHUB_OUTPUT}"
+            echo "release_name=Liuyi Trainer Migration APK" >> "${GITHUB_OUTPUT}"
+            echo "release_body=自动更新的数据迁移版 APK 下载页。该包使用正式签名，但临时启用了 debuggable 以支持 adb run-as 数据恢复。" >> "${GITHUB_OUTPUT}"
+            echo "expect_debuggable=true" >> "${GITHUB_OUTPUT}"
+          elif [ "${requested_mode}" = "release" ]; then
+            if [ "${has_signing}" = "true" ]; then
+              echo "gradle_task=:app:assembleRelease" >> "${GITHUB_OUTPUT}"
+              echo "artifact_name=liuyi-trainer-release-apk" >> "${GITHUB_OUTPUT}"
+              echo "apk_glob=app/build/outputs/apk/release/*.apk" >> "${GITHUB_OUTPUT}"
+              echo "release_tag=stable-latest" >> "${GITHUB_OUTPUT}"
+              echo "release_name=Liuyi Trainer Stable APK" >> "${GITHUB_OUTPUT}"
+              echo "release_body=自动更新的稳定签名 APK 下载页。" >> "${GITHUB_OUTPUT}"
+              echo "expect_debuggable=false" >> "${GITHUB_OUTPUT}"
+            else
+              echo "Requested release build, but signing secrets are missing. Falling back to debug."
+              echo "gradle_task=:app:assembleDebug" >> "${GITHUB_OUTPUT}"
+              echo "artifact_name=liuyi-trainer-debug-apk" >> "${GITHUB_OUTPUT}"
+              echo "apk_glob=app/build/outputs/apk/debug/*.apk" >> "${GITHUB_OUTPUT}"
+              echo "release_tag=debug-latest" >> "${GITHUB_OUTPUT}"
+              echo "release_name=Liuyi Trainer Debug APK" >> "${GITHUB_OUTPUT}"
+              echo "release_body=自动更新的调试版 APK 下载页。由于未配置固定签名，调试包会使用独立包名 com.liuyi.trainer.debug。" >> "${GITHUB_OUTPUT}"
+              echo "expect_debuggable=true" >> "${GITHUB_OUTPUT}"
+            fi
+          elif [ "${requested_mode}" = "debug" ]; then
             echo "gradle_task=:app:assembleDebug" >> "${GITHUB_OUTPUT}"
             echo "artifact_name=liuyi-trainer-debug-apk" >> "${GITHUB_OUTPUT}"
             echo "apk_glob=app/build/outputs/apk/debug/*.apk" >> "${GITHUB_OUTPUT}"
             echo "release_tag=debug-latest" >> "${GITHUB_OUTPUT}"
             echo "release_name=Liuyi Trainer Debug APK" >> "${GITHUB_OUTPUT}"
             echo "release_body=自动更新的调试版 APK 下载页。由于未配置固定签名，调试包会使用独立包名 com.liuyi.trainer.debug。" >> "${GITHUB_OUTPUT}"
+            echo "expect_debuggable=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Unknown build mode: ${requested_mode}"
+            exit 1
           fi
 
       - name: Build APK
@@ -102,7 +152,30 @@ jobs:
           ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew ${{ steps.build_variant.outputs.gradle_task }} --build-cache --no-configuration-cache --stacktrace -PANDROID_VERSION_CODE=${{ github.run_number }} -PANDROID_VERSION_NAME=0.1.${{ github.run_number }} -PANDROID_RELEASE_DEBUGGABLE=${{ vars.ANDROID_RELEASE_DEBUGGABLE }}
+        run: ./gradlew ${{ steps.build_variant.outputs.gradle_task }} --build-cache --no-configuration-cache --stacktrace -PANDROID_VERSION_CODE=${{ github.run_number }} -PANDROID_VERSION_NAME=0.1.${{ github.run_number }}
+
+      - name: Verify APK mode
+        if: steps.build_variant.outputs.expect_debuggable != ''
+        shell: bash
+        run: |
+          apk_path=$(find app/build/outputs/apk -name '*.apk' | head -n 1)
+          if [ -z "${apk_path}" ]; then
+            echo "No APK found for verification"
+            exit 1
+          fi
+          echo "Verifying ${apk_path}"
+          manifest_dump="$("${ANDROID_SDK_ROOT}/build-tools/36.0.0/aapt" dump xmltree "${apk_path}" AndroidManifest.xml)"
+          if [ "${{ steps.build_variant.outputs.expect_debuggable }}" = "true" ]; then
+            echo "${manifest_dump}" | grep -q 'A: android:debuggable' || {
+              echo "Expected a debuggable APK, but android:debuggable is missing"
+              exit 1
+            }
+          else
+            echo "${manifest_dump}" | grep -q 'A: android:debuggable' && {
+              echo "Expected a stable release APK, but android:debuggable is present"
+              exit 1
+            } || true
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

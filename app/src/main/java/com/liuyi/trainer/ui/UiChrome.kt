@@ -30,6 +30,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.ui.unit.dp
 
 val PrisonPanelShape = RoundedCornerShape(24.dp)
@@ -83,6 +88,7 @@ fun PrisonScrollColumn(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
             .verticalScroll(rememberScrollState())
             .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(14.dp),

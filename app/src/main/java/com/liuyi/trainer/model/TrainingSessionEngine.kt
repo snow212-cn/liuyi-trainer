@@ -11,6 +11,17 @@ data class RestPreset(
 sealed interface TrainingSessionState {
     data object Idle : TrainingSessionState
 
+    data class PreparingSet(
+        val familyId: String,
+        val stepLevel: Int,
+        val cadenceProfile: CadenceProfile,
+        val restPreset: RestPreset,
+        val sessionStartedAtUtc: Instant?,
+        val prepareStartedAtUtc: Instant,
+        val targetSetStartedAtUtc: Instant,
+        val completedSets: List<WorkoutSetResult>,
+    ) : TrainingSessionState
+
     data class SetRunning(
         val familyId: String,
         val stepLevel: Int,
@@ -58,21 +69,40 @@ data class RestSnapshot(
     val isOvertime: Boolean,
 )
 
-fun startTrainingSession(
+fun prepareTrainingSession(
     familyId: String,
     stepLevel: Int,
     cadenceProfile: CadenceProfile,
     restPreset: RestPreset,
-    startedAtUtc: Instant,
-): TrainingSessionState.SetRunning = TrainingSessionState.SetRunning(
+    prepareStartedAtUtc: Instant,
+    preparationSeconds: Int = 3,
+): TrainingSessionState.PreparingSet = TrainingSessionState.PreparingSet(
     familyId = familyId,
     stepLevel = stepLevel,
     cadenceProfile = cadenceProfile,
     restPreset = restPreset,
-    sessionStartedAtUtc = startedAtUtc,
-    setStartedAtUtc = startedAtUtc,
+    sessionStartedAtUtc = null,
+    prepareStartedAtUtc = prepareStartedAtUtc,
+    targetSetStartedAtUtc = prepareStartedAtUtc.plusSeconds(preparationSeconds.toLong()),
     completedSets = emptyList(),
 )
+
+fun updatePreparingState(
+    state: TrainingSessionState.PreparingSet,
+    nowUtc: Instant,
+): TrainingSessionState = if (nowUtc.isBefore(state.targetSetStartedAtUtc)) {
+    state
+} else {
+    TrainingSessionState.SetRunning(
+        familyId = state.familyId,
+        stepLevel = state.stepLevel,
+        cadenceProfile = state.cadenceProfile,
+        restPreset = state.restPreset,
+        sessionStartedAtUtc = state.sessionStartedAtUtc ?: state.targetSetStartedAtUtc,
+        setStartedAtUtc = state.targetSetStartedAtUtc,
+        completedSets = state.completedSets,
+    )
+}
 
 fun finishCurrentSet(
     state: TrainingSessionState.SetRunning,
@@ -138,27 +168,30 @@ fun updateRestState(
     }
 }
 
-fun startNextSet(
+fun prepareNextSet(
     state: TrainingSessionState,
-    startedAtUtc: Instant,
-): TrainingSessionState.SetRunning = when (state) {
-    is TrainingSessionState.RestRunning -> TrainingSessionState.SetRunning(
+    prepareStartedAtUtc: Instant,
+    preparationSeconds: Int = 3,
+): TrainingSessionState.PreparingSet = when (state) {
+    is TrainingSessionState.RestRunning -> TrainingSessionState.PreparingSet(
         familyId = state.familyId,
         stepLevel = state.stepLevel,
         cadenceProfile = state.cadenceProfile,
         restPreset = state.restPreset,
         sessionStartedAtUtc = state.sessionStartedAtUtc,
-        setStartedAtUtc = startedAtUtc,
+        prepareStartedAtUtc = prepareStartedAtUtc,
+        targetSetStartedAtUtc = prepareStartedAtUtc.plusSeconds(preparationSeconds.toLong()),
         completedSets = state.completedSets,
     )
 
-    is TrainingSessionState.RestOvertime -> TrainingSessionState.SetRunning(
+    is TrainingSessionState.RestOvertime -> TrainingSessionState.PreparingSet(
         familyId = state.familyId,
         stepLevel = state.stepLevel,
         cadenceProfile = state.cadenceProfile,
         restPreset = state.restPreset,
         sessionStartedAtUtc = state.sessionStartedAtUtc,
-        setStartedAtUtc = startedAtUtc,
+        prepareStartedAtUtc = prepareStartedAtUtc,
+        targetSetStartedAtUtc = prepareStartedAtUtc.plusSeconds(preparationSeconds.toLong()),
         completedSets = state.completedSets,
     )
 
@@ -169,6 +202,8 @@ fun completeTrainingSession(
     state: TrainingSessionState,
     endedAtUtc: Instant,
 ): TrainingSessionState.Completed = when (state) {
+    is TrainingSessionState.PreparingSet -> error("Preparing state cannot be completed directly.")
+
     is TrainingSessionState.SetRunning -> {
         val restState = finishCurrentSet(
             state = state,

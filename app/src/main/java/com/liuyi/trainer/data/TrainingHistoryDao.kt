@@ -34,6 +34,32 @@ interface TrainingHistoryDao {
     @Query("SELECT * FROM training_sessions ORDER BY sessionEndedAtUtcEpochMs DESC")
     fun observeRecentSessions(): Flow<List<TrainingSessionWithSets>>
 
+    @Query(
+        """
+        UPDATE training_sessions
+        SET totalSets = :totalSets,
+            totalReps = :totalReps
+        WHERE sessionId = :sessionId
+        """
+    )
+    suspend fun updateSessionTotals(
+        sessionId: Long,
+        totalSets: Int,
+        totalReps: Int,
+    )
+
+    @Query(
+        """
+        UPDATE training_sets
+        SET completedRepCount = :completedRepCount
+        WHERE setId = :setId
+        """
+    )
+    suspend fun updateSetRepCount(
+        setId: Long,
+        completedRepCount: Int,
+    )
+
     @Query("DELETE FROM training_sessions WHERE sessionId = :sessionId")
     suspend fun deleteSessionById(sessionId: Long)
 }

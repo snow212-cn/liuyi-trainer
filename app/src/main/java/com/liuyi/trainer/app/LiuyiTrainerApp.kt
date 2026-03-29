@@ -11,12 +11,14 @@ import com.liuyi.trainer.ui.HomeScreen
 import com.liuyi.trainer.ui.StandardsScreen
 import com.liuyi.trainer.ui.TrainingHistoryDetailScreen
 import com.liuyi.trainer.ui.TrainingHistoryScreen
+import com.liuyi.trainer.ui.TrainingPreparationScreen
 import com.liuyi.trainer.ui.TrainingReadyScreen
 import com.liuyi.trainer.ui.TrainingRestScreen
 import com.liuyi.trainer.ui.TrainingRunningScreen
 import com.liuyi.trainer.ui.TrainingSummaryScreen
 import com.liuyi.trainer.ui.buildHistoryDetailPreview
 import com.liuyi.trainer.ui.buildHistoryPreview
+import com.liuyi.trainer.ui.buildPreparingPreview
 import com.liuyi.trainer.ui.buildRestPreview
 import com.liuyi.trainer.ui.buildRunningPreview
 import com.liuyi.trainer.ui.buildStandardsPreview
@@ -39,6 +41,7 @@ fun LiuyiTrainerApp(
 ) {
     val navController = rememberNavController()
     val activeContext = appViewModel.activeContext
+    val activeRoute = routeForSessionState(appViewModel.sessionState)
 
     NavHost(
         navController = navController,
@@ -59,6 +62,20 @@ fun LiuyiTrainerApp(
                 onStartTraining = {
                     navController.navigate(Routes.Training)
                 },
+                hasActiveSession = appViewModel.sessionState !is TrainingSessionState.Idle &&
+                    appViewModel.sessionState !is TrainingSessionState.Completed,
+                activeSessionLabel = activeSessionHomeLabel(appViewModel.sessionState),
+                onOpenActiveSession = {
+                    navController.navigate(activeRoute)
+                },
+                onFinishActiveSession = {
+                    val movedToSummary = appViewModel.finishActiveTrainingFromAnywhere()
+                    navController.navigate(if (movedToSummary) Routes.Summary else Routes.Home) {
+                        popUpTo(Routes.Home) {
+                            inclusive = false
+                        }
+                    }
+                },
                 onOpenSummary = {
                     navController.navigate(Routes.Summary)
                 },
@@ -73,7 +90,19 @@ fun LiuyiTrainerApp(
 
         composable(Routes.Training) {
             val currentState = appViewModel.sessionState
-            if (currentState is TrainingSessionState.SetRunning) {
+            if (currentState is TrainingSessionState.PreparingSet) {
+                TrainingPreparationScreen(
+                    preview = buildPreparingPreview(
+                        context = activeContext,
+                        state = currentState,
+                        nowUtc = appViewModel.nowUtc,
+                    ),
+                    speechEnabled = appViewModel.speechEnabled,
+                    onBack = {
+                        navController.popBackStack(Routes.Home, false)
+                    },
+                )
+            } else if (currentState is TrainingSessionState.SetRunning) {
                 TrainingRunningScreen(
                     preview = buildRunningPreview(
                         context = activeContext,
@@ -133,6 +162,7 @@ fun LiuyiTrainerApp(
                         state = currentState,
                         nowUtc = appViewModel.nowUtc,
                     ),
+                    speechEnabled = appViewModel.speechEnabled,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -193,7 +223,11 @@ fun LiuyiTrainerApp(
 
         composable(Routes.HistoryDetail) {
             TrainingHistoryDetailScreen(
-                preview = buildHistoryDetailPreview(appViewModel.selectedHistorySession),
+                preview = buildHistoryDetailPreview(
+                    sessionWithSets = appViewModel.selectedHistorySession,
+                    repDrafts = appViewModel.historyRepDrafts,
+                    hasPendingEdits = appViewModel.historyEditsDirty,
+                ),
                 onBack = {
                     navController.popBackStack()
                 },
@@ -208,6 +242,8 @@ fun LiuyiTrainerApp(
                     appViewModel.deleteSelectedHistorySession()
                     navController.popBackStack()
                 },
+                onUpdateRep = appViewModel::updateHistoryRep,
+                onSave = appViewModel::saveSelectedHistoryEdits,
             )
         }
 
@@ -226,4 +262,21 @@ fun LiuyiTrainerApp(
             )
         }
     }
+}
+
+private fun routeForSessionState(state: TrainingSessionState): String = when (state) {
+    is TrainingSessionState.RestRunning,
+    is TrainingSessionState.RestOvertime -> Routes.Rest
+
+    is TrainingSessionState.Completed -> Routes.Summary
+
+    else -> Routes.Training
+}
+
+private fun activeSessionHomeLabel(state: TrainingSessionState): String? = when (state) {
+    is TrainingSessionState.PreparingSet -> "准备倒计时中"
+    is TrainingSessionState.SetRunning -> "当前正在训练"
+    is TrainingSessionState.RestRunning -> "当前在组间休息"
+    is TrainingSessionState.RestOvertime -> "当前休息已超时"
+    else -> null
 }

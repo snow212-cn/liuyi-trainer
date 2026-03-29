@@ -13,6 +13,23 @@ class TrainingHistoryRepository(
         trainingHistoryDao.deleteSessionById(sessionId)
     }
 
+    suspend fun updateSessionRepCounts(
+        sessionId: Long,
+        setRepUpdates: List<Pair<Long, Int>>,
+    ) {
+        setRepUpdates.forEach { (setId, completedRepCount) ->
+            trainingHistoryDao.updateSetRepCount(
+                setId = setId,
+                completedRepCount = completedRepCount,
+            )
+        }
+        trainingHistoryDao.updateSessionTotals(
+            sessionId = sessionId,
+            totalSets = setRepUpdates.size,
+            totalReps = setRepUpdates.sumOf { it.second },
+        )
+    }
+
     suspend fun saveCompletedSession(
         state: TrainingSessionState.Completed,
     ) {

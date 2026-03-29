@@ -13,8 +13,9 @@ import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.TrainingSessionState
 import com.liuyi.trainer.model.completeTrainingSession
 import com.liuyi.trainer.model.finishCurrentSet
-import com.liuyi.trainer.model.startNextSet
-import com.liuyi.trainer.model.startTrainingSession
+import com.liuyi.trainer.model.prepareNextSet
+import com.liuyi.trainer.model.prepareTrainingSession
+import com.liuyi.trainer.model.updatePreparingState
 import com.liuyi.trainer.model.updateRestState
 import com.liuyi.trainer.ui.ExerciseContext
 import com.liuyi.trainer.ui.defaultExerciseContext
@@ -64,6 +65,12 @@ class LiuyiTrainerViewModel(
     var selectedHistorySessionId by mutableLongStateOf(-1L)
         private set
 
+    var historyRepDrafts by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    var historyEditsDirty by mutableStateOf(false)
+        private set
+
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
 
     init {
@@ -78,6 +85,7 @@ class LiuyiTrainerViewModel(
                 ) {
                     selectedHistorySessionId = sessions.firstOrNull()?.session?.sessionId ?: -1L
                 }
+                syncHistoryDrafts()
             }
         }
     }
@@ -117,6 +125,8 @@ class LiuyiTrainerViewModel(
 
     fun selectHistorySession(sessionId: Long) {
         selectedHistorySessionId = sessionId
+        historyEditsDirty = false
+        syncHistoryDrafts()
     }
 
     fun loadSelectedHistoryAsCurrent() {
@@ -143,16 +153,16 @@ class LiuyiTrainerViewModel(
     }
 
     fun beginTraining() {
-        val startedAt = Instant.now()
-        nowUtc = startedAt
+        val preparedAt = Instant.now()
+        nowUtc = preparedAt
         summaryRepDrafts = emptyList()
         summarySaved = false
-        sessionState = startTrainingSession(
+        sessionState = prepareTrainingSession(
             familyId = selectedContext.family.id,
             stepLevel = selectedContext.step.level,
             cadenceProfile = selectedContext.family.previewCadence,
             restPreset = defaultRestPreset().copy(defaultRestSeconds = restPresetSeconds),
-            startedAtUtc = startedAt,
+            prepareStartedAtUtc = preparedAt,
         )
         ensureTicker()
     }
@@ -180,11 +190,11 @@ class LiuyiTrainerViewModel(
             return
         }
 
-        val startedAt = Instant.now()
-        nowUtc = startedAt
-        sessionState = startNextSet(
+        val preparedAt = Instant.now()
+        nowUtc = preparedAt
+        sessionState = prepareNextSet(
             state = currentState,
-            startedAtUtc = startedAt,
+            prepareStartedAtUtc = preparedAt,
         )
         ensureTicker()
     }
@@ -250,9 +260,68 @@ class LiuyiTrainerViewModel(
         }
     }
 
+    fun updateHistoryRep(
+        index: Int,
+        value: String,
+    ) {
+        if (index !in historyRepDrafts.indices) {
+            return
+        }
+
+        val sanitized = value.filter(Char::isDigit).take(4)
+        historyRepDrafts = historyRepDrafts.mapIndexed { currentIndex, currentValue ->
+            if (currentIndex == index) {
+                sanitized
+            } else {
+                currentValue
+            }
+        }
+        historyEditsDirty = true
+    }
+
+    fun saveSelectedHistoryEdits() {
+        val session = selectedHistorySession ?: return
+        val sortedSets = session.sets.sortedBy { it.setIndex }
+        if (sortedSets.isEmpty()) {
+            return
+        }
+
+        val repUpdates = sortedSets.mapIndexed { index, set ->
+            set.setId to (historyRepDrafts.getOrNull(index)?.toIntOrNull() ?: set.completedRepCount)
+        }
+
+        viewModelScope.launch {
+            trainingHistoryRepository.updateSessionRepCounts(
+                sessionId = session.session.sessionId,
+                setRepUpdates = repUpdates,
+            )
+            historyEditsDirty = false
+        }
+    }
+
+    fun finishActiveTrainingFromAnywhere(): Boolean {
+        return when (sessionState) {
+            TrainingSessionState.Idle -> false
+            is TrainingSessionState.Completed -> true
+            is TrainingSessionState.PreparingSet -> {
+                sessionState = TrainingSessionState.Idle
+                tickerJob?.cancel()
+                tickerJob = null
+                nowUtc = Instant.now()
+                false
+            }
+
+            else -> {
+                completeTraining()
+                true
+            }
+        }
+    }
+
     private fun ensureTicker() {
         tickerJob?.cancel()
         tickerJob = when (sessionState) {
+            is TrainingSessionState.PreparingSet,
             is TrainingSessionState.SetRunning,
             is TrainingSessionState.RestRunning,
             is TrainingSessionState.RestOvertime
@@ -262,11 +331,18 @@ class LiuyiTrainerViewModel(
                     val now = Instant.now()
                     nowUtc = now
 
-                    if (currentState is TrainingSessionState.RestRunning) {
-                        sessionState = updateRestState(
+                    sessionState = when (currentState) {
+                        is TrainingSessionState.PreparingSet -> updatePreparingState(
                             state = currentState,
                             nowUtc = now,
                         )
+
+                        is TrainingSessionState.RestRunning -> updateRestState(
+                            state = currentState,
+                            nowUtc = now,
+                        )
+
+                        else -> currentState
                     }
 
                     delay(100)
@@ -275,6 +351,18 @@ class LiuyiTrainerViewModel(
 
             else -> null
         }
+    }
+
+    private fun syncHistoryDrafts() {
+        if (historyEditsDirty) {
+            return
+        }
+
+        historyRepDrafts = selectedHistorySession
+            ?.sets
+            ?.sortedBy { it.setIndex }
+            ?.map { it.completedRepCount.toString() }
+            ?: emptyList()
     }
 }
 
@@ -297,6 +385,12 @@ private fun resolveContextForSession(
     state: TrainingSessionState,
     fallback: ExerciseContext,
 ): ExerciseContext = when (state) {
+    is TrainingSessionState.PreparingSet -> resolveExerciseContext(
+        familyId = state.familyId,
+        stepLevel = state.stepLevel,
+        fallback = fallback,
+    )
+
     is TrainingSessionState.SetRunning -> resolveExerciseContext(
         familyId = state.familyId,
         stepLevel = state.stepLevel,

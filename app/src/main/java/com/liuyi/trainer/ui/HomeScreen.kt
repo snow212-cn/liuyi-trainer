@@ -37,6 +37,10 @@ fun HomeScreen(
     onSelectStep: (Int) -> Unit,
     onSelectRestPreset: (Int) -> Unit,
     onStartTraining: () -> Unit,
+    hasActiveSession: Boolean,
+    activeSessionLabel: String?,
+    onOpenActiveSession: () -> Unit,
+    onFinishActiveSession: () -> Unit,
     onOpenSummary: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenStandards: () -> Unit,
@@ -66,8 +70,17 @@ fun HomeScreen(
                     MutedBody(text = selectedStep.label)
                     MutedBody(text = "休息 ${restPresetSeconds} 秒")
                 }
+                if (hasActiveSession && activeSessionLabel != null) {
+                    ActiveSessionStrip(
+                        label = activeSessionLabel,
+                        onOpenActiveSession = onOpenActiveSession,
+                        onFinishActiveSession = onFinishActiveSession,
+                    )
+                }
                 HomeActionGrid(
+                    hasActiveSession = hasActiveSession,
                     onStartTraining = onStartTraining,
+                    onOpenActiveSession = onOpenActiveSession,
                     onOpenStandards = onOpenStandards,
                     onOpenHistory = onOpenHistory,
                     onOpenSummary = onOpenSummary,
@@ -161,7 +174,9 @@ private fun HomeTitleBar() {
 
 @Composable
 private fun HomeActionGrid(
+    hasActiveSession: Boolean,
     onStartTraining: () -> Unit,
+    onOpenActiveSession: () -> Unit,
     onOpenStandards: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenSummary: () -> Unit,
@@ -172,8 +187,8 @@ private fun HomeActionGrid(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SteelPrimaryButton(
-                text = "进入训练",
-                onClick = onStartTraining,
+                text = if (hasActiveSession) "回到训练" else "进入训练",
+                onClick = if (hasActiveSession) onOpenActiveSession else onStartTraining,
                 modifier = Modifier.weight(1f),
             )
             SteelSecondaryButton(
@@ -197,6 +212,37 @@ private fun HomeActionGrid(
                 modifier = Modifier.weight(1f),
             )
         }
+    }
+}
+
+@Composable
+private fun ActiveSessionStrip(
+    label: String,
+    onOpenActiveSession: () -> Unit,
+    onFinishActiveSession: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedInner)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        SteelSecondaryButton(
+            text = "结束本次",
+            onClick = onFinishActiveSession,
+            modifier = Modifier.weight(0.72f),
+        )
     }
 }
 
@@ -495,4 +541,3 @@ private fun RestNotchRow(
 
 private val RoundedInner = PrisonPanelShape
 private val RoundedFull = RoundedInner
-

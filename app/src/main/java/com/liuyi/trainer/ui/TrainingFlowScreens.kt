@@ -7,13 +7,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -74,6 +80,17 @@ data class TrainingEntryPreview(
     val restPresetLabel: String,
 )
 
+data class PreparingPreview(
+    val context: ExerciseContext,
+    val currentSetIndex: Int,
+    val completedSetCount: Int,
+    val totalRepCount: Int,
+    val countdownLabel: String,
+    val hintLabel: String,
+    val speechCueKey: String?,
+    val speechCueText: String?,
+)
+
 data class RunningPreview(
     val context: ExerciseContext,
     val currentPhaseLabel: String,
@@ -94,6 +111,8 @@ data class RestPreview(
     val restTimeLabel: String,
     val restHint: String,
     val presetLabel: String,
+    val speechCueKey: String?,
+    val speechCueText: String?,
 )
 
 data class SummarySetRowPreview(
@@ -136,19 +155,22 @@ data class HistoryPreview(
 )
 
 data class HistorySetDetailPreview(
+    val setId: Long,
     val setIndex: Int,
-    val repCountLabel: String,
+    val repValue: String,
     val durationLabel: String,
-    val restLabel: String,
+    val restAfterLabel: String,
     val endedAtLabel: String,
 )
 
 data class HistoryDetailPreview(
+    val sessionId: Long,
     val title: String,
     val timeRangeLabel: String,
     val totalsLabel: String,
     val metaLines: List<String>,
     val setDetails: List<HistorySetDetailPreview>,
+    val isSaveEnabled: Boolean,
 )
 
 @Composable
@@ -219,6 +241,89 @@ fun TrainingReadyScreen(
 }
 
 @Composable
+fun TrainingPreparationScreen(
+    preview: PreparingPreview,
+    speechEnabled: Boolean,
+    onBack: () -> Unit,
+) {
+    SpeechCueEffect(
+        enabled = speechEnabled,
+        cueKey = preview.speechCueKey,
+        cueText = preview.speechCueText,
+    )
+
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
+                title = "准备开始",
+                actionLabel = "返回首页",
+                onAction = onBack,
+            )
+
+            StatusStrip(
+                lines = listOf(
+                    "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组",
+                ),
+            )
+
+            SteelPanel {
+                SectionKicker(text = "SET PREP")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(228.dp)
+                            .clip(CircleShape)
+                            .border(
+                                width = 8.dp,
+                                brush = Brush.sweepGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.secondary,
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.secondary,
+                                    ),
+                                ),
+                                shape = CircleShape,
+                            )
+                            .background(
+                                brush = Brush.radialGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        MaterialTheme.colorScheme.background,
+                                    ),
+                                ),
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            SectionKicker(text = "就位")
+                            Text(
+                                text = preview.countdownLabel,
+                                style = MaterialTheme.typography.displayLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            MutedBody(text = preview.hintLabel)
+                        }
+                    }
+                }
+                MetricPlate(
+                    label = "累计次数",
+                    value = preview.totalRepCount.toString(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun TrainingRunningScreen(
     preview: RunningPreview,
     speechEnabled: Boolean,
@@ -227,8 +332,9 @@ fun TrainingRunningScreen(
     onFinishSet: () -> Unit,
     onCompleteTraining: () -> Unit,
 ) {
-    TrainingVoiceCueEffect(
+    SpeechCueEffect(
         enabled = speechEnabled,
+        cueKey = preview.phaseCueText,
         cueText = preview.phaseCueText,
     )
 
@@ -302,10 +408,17 @@ fun TrainingRunningScreen(
 @Composable
 fun TrainingRestScreen(
     preview: RestPreview,
+    speechEnabled: Boolean,
     onBack: () -> Unit,
     onStartNextSet: () -> Unit,
     onCompleteTraining: () -> Unit,
 ) {
+    SpeechCueEffect(
+        enabled = speechEnabled,
+        cueKey = preview.speechCueKey,
+        cueText = preview.speechCueText,
+    )
+
     PrisonSurface {
         PrisonScrollColumn {
             ScreenTopBar(
@@ -389,13 +502,7 @@ fun TrainingSummaryScreen(
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    MutedBody(text = "开始 ${preview.sessionStartLabel}")
-                    MutedBody(text = "结束 ${preview.sessionEndLabel}")
-                }
+                MutedBody(text = "${preview.sessionStartLabel} - ${preview.sessionEndLabel}")
             }
 
             SteelPanel(soft = true) {
@@ -523,8 +630,10 @@ fun TrainingHistoryScreen(
 ) {
     PrisonSurface {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 18.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical)),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
@@ -573,6 +682,8 @@ fun TrainingHistoryDetailScreen(
     onBackHome: () -> Unit,
     onReuse: () -> Unit,
     onDelete: () -> Unit,
+    onUpdateRep: (Int, String) -> Unit,
+    onSave: () -> Unit,
 ) {
     PrisonSurface {
         PrisonScrollColumn {
@@ -604,6 +715,8 @@ fun TrainingHistoryDetailScreen(
                 }
 
                 DetailActionRow(
+                    canSave = preview.isSaveEnabled,
+                    onSave = onSave,
                     onReuse = onReuse,
                     onDelete = onDelete,
                 )
@@ -624,7 +737,10 @@ fun TrainingHistoryDetailScreen(
                         subtitle = "${preview.setDetails.size} 组",
                     )
                     preview.setDetails.forEachIndexed { index, detail ->
-                        DetailSetBlock(detail = detail)
+                        DetailSetBlock(
+                            detail = detail,
+                            onValueChange = { onUpdateRep(index, it) },
+                        )
                         if (index != preview.setDetails.lastIndex) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
                         }
@@ -745,46 +861,7 @@ private fun CadenceCorePanel(
                 }
             }
         }
-        CueTrack(activeCue = cueText)
         BreathBars(activeCue = cueText)
-    }
-}
-
-@Composable
-private fun CueTrack(activeCue: String) {
-    val cues = listOf("落", "停", "起")
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        cues.forEach { cue ->
-            val active = cue == activeCue
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (active) {
-                            MaterialTheme.colorScheme.secondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.30f)
-                        },
-                    )
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = cue,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (active) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-        }
     }
 }
 
@@ -932,6 +1009,8 @@ private fun StandardsIllustrationFrame() {
 
 @Composable
 private fun DetailActionRow(
+    canSave: Boolean,
+    onSave: () -> Unit,
     onReuse: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -940,9 +1019,9 @@ private fun DetailActionRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         CompactActionPill(
-            text = "编辑待接入",
-            enabled = false,
-            onClick = {},
+            text = "保存修改",
+            enabled = canSave,
+            onClick = onSave,
             modifier = Modifier.weight(1f),
         )
         CompactActionPill(
@@ -1085,7 +1164,10 @@ private fun HistorySetBand(
 }
 
 @Composable
-private fun DetailSetBlock(detail: HistorySetDetailPreview) {
+private fun DetailSetBlock(
+    detail: HistorySetDetailPreview,
+    onValueChange: (String) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1100,19 +1182,17 @@ private fun DetailSetBlock(detail: HistorySetDetailPreview) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
-            Text(
-                text = detail.repCountLabel,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
         }
-        Row(
+        OutlinedTextField(
+            value = detail.repValue,
+            onValueChange = onValueChange,
+            label = { Text("次数") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            MutedBody(text = "时长 ${detail.durationLabel}")
-            MutedBody(text = detail.restLabel)
-        }
+        )
+        MutedBody(text = "时长 ${detail.durationLabel}")
+        MutedBody(text = detail.restAfterLabel)
         MutedBody(text = "结束 ${detail.endedAtLabel}")
     }
 }
@@ -1135,31 +1215,51 @@ private fun StatusBadge(label: String) {
 }
 
 @Composable
-private fun TrainingVoiceCueEffect(
+private fun SpeechCueEffect(
     enabled: Boolean,
-    cueText: String,
+    cueKey: String?,
+    cueText: String?,
 ) {
     val context = LocalContext.current
     var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
+    var engineReady by remember { mutableStateOf(false) }
+    var lastSpokenKey by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 textToSpeech?.language = Locale.SIMPLIFIED_CHINESE
+                engineReady = true
+            } else {
+                engineReady = false
             }
         }
         textToSpeech = engine
+        engineReady = false
 
         onDispose {
             engine.stop()
             engine.shutdown()
             textToSpeech = null
+            engineReady = false
         }
     }
 
-    LaunchedEffect(enabled, cueText, textToSpeech) {
-        if (enabled) {
-            textToSpeech?.speak(cueText, TextToSpeech.QUEUE_FLUSH, null, cueText)
+    LaunchedEffect(enabled) {
+        if (!enabled) {
+            lastSpokenKey = null
+        }
+    }
+
+    LaunchedEffect(enabled, cueKey, cueText, textToSpeech, engineReady) {
+        if (!enabled || cueKey.isNullOrBlank() || cueText.isNullOrBlank() || !engineReady) {
+            return@LaunchedEffect
+        }
+        if (cueKey != lastSpokenKey) {
+            val speakResult = textToSpeech?.speak(cueText, TextToSpeech.QUEUE_FLUSH, null, cueKey)
+            if (speakResult == TextToSpeech.SUCCESS) {
+                lastSpokenKey = cueKey
+            }
         }
     }
 }
@@ -1176,6 +1276,25 @@ fun buildTrainingEntryPreview(
     restPresetLabel = "${restPresetSeconds} 秒",
 )
 
+fun buildPreparingPreview(
+    context: ExerciseContext,
+    state: TrainingSessionState.PreparingSet,
+    nowUtc: Instant,
+): PreparingPreview {
+    val remainingMs = Duration.between(nowUtc, state.targetSetStartedAtUtc).toMillis().coerceAtLeast(0L)
+    val remainingSeconds = ((remainingMs + 999L) / 1000L).coerceAtLeast(1L)
+    return PreparingPreview(
+        context = context,
+        currentSetIndex = state.completedSets.size + 1,
+        completedSetCount = state.completedSets.size,
+        totalRepCount = state.completedSets.sumOf { it.completedRepCount },
+        countdownLabel = remainingSeconds.toString(),
+        hintLabel = "就位后按 2-1-2 开始",
+        speechCueKey = "prep-$remainingSeconds",
+        speechCueText = remainingSeconds.toString(),
+    )
+}
+
 fun buildRunningPreview(
     context: ExerciseContext,
     state: TrainingSessionState.SetRunning,
@@ -1187,7 +1306,7 @@ fun buildRunningPreview(
     )
     return RunningPreview(
         context = context,
-        currentPhaseLabel = progress.phase.labelZh(),
+        currentPhaseLabel = progress.phase.displayLabelZh(),
         phaseSecondLabel = String.format(Locale.getDefault(), "%.1f", progress.phaseElapsedMs / 1000f),
         phaseCueText = progress.phase.voiceCue(),
         currentRepCount = progress.completedRepCount,
@@ -1228,6 +1347,7 @@ fun buildRestPreview(
         restPreset = restPreset,
         nowUtc = nowUtc,
     )
+    val speechCue = restSpeechCue(snapshot)
 
     return RestPreview(
         context = context,
@@ -1237,6 +1357,8 @@ fun buildRestPreview(
         restTimeLabel = if (snapshot.isOvertime) "+${formatStopwatch(snapshot.overtimeMs)}" else formatStopwatch(snapshot.remainingMs),
         restHint = if (snapshot.isOvertime) "已超出建议休息时长，继续显示正计时。" else "倒计时结束前可随时开始下一组。",
         presetLabel = "${restPreset.defaultRestSeconds} 秒",
+        speechCueKey = speechCue?.first,
+        speechCueText = speechCue?.second,
     )
 }
 
@@ -1256,6 +1378,11 @@ fun buildSummaryPreview(
         is TrainingSessionState.Completed -> {
             sessionStartedAtUtc = state.sessionStartedAtUtc
             sessionEndedAtUtc = state.sessionEndedAtUtc
+            completedSets = state.completedSets
+        }
+        is TrainingSessionState.PreparingSet -> {
+            sessionStartedAtUtc = state.sessionStartedAtUtc ?: nowUtc
+            sessionEndedAtUtc = nowUtc
             completedSets = state.completedSets
         }
         is TrainingSessionState.SetRunning -> {
@@ -1342,7 +1469,7 @@ fun buildHistoryPreview(
             setCountLabel = "${sessionWithSets.session.totalSets} 组",
             setPreview = sessionWithSets.sets
                 .sortedBy { it.setIndex }
-                .joinToString(separator = " / ") { set -> set.completedRepCount.toString() }
+                .joinToString(separator = " + ") { set -> set.completedRepCount.toString() }
                 .ifBlank { "暂无分组明细" },
             dateLabel = UiTimeFormatter.format(Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)),
         )
@@ -1351,6 +1478,8 @@ fun buildHistoryPreview(
 
 fun buildHistoryDetailPreview(
     sessionWithSets: TrainingSessionWithSets?,
+    repDrafts: List<String>,
+    hasPendingEdits: Boolean,
 ): HistoryDetailPreview? {
     if (sessionWithSets == null) {
         return null
@@ -1362,36 +1491,48 @@ fun buildHistoryDetailPreview(
     val endedAt = Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)
     val sessionDurationMs = (sessionWithSets.session.sessionEndedAtUtcEpochMs - sessionWithSets.session.sessionStartedAtUtcEpochMs).coerceAtLeast(0L)
     val sortedSets = sessionWithSets.sets.sortedBy { it.setIndex }
+    val totalReps = sortedSets.mapIndexed { index, set ->
+        repDrafts.getOrNull(index)?.toIntOrNull() ?: set.completedRepCount
+    }.sum()
 
     return HistoryDetailPreview(
+        sessionId = sessionWithSets.session.sessionId,
         title = buildString {
             append(family?.titleZh ?: sessionWithSets.session.familyId)
             append(" · ")
             append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
         },
         timeRangeLabel = "开始 ${UiTimeFormatter.format(startedAt)} · 结束 ${UiTimeFormatter.format(endedAt)}",
-        totalsLabel = "共 ${sessionWithSets.session.totalSets} 组 · ${sessionWithSets.session.totalReps} 次",
+        totalsLabel = "共 ${sessionWithSets.session.totalSets} 组 · ${totalReps} 次",
         metaLines = listOf(
             "训练时长 ${formatStopwatch(sessionDurationMs)}",
             "休息预设 ${sessionWithSets.session.restPresetSeconds} 秒",
-            "下方逐组显示每组的实际组间休息与结束时间",
+            "下方可直接修正每组次数",
         ),
         setDetails = sortedSets.mapIndexed { index, set ->
-            val restLabel = if (index == 0) {
-                "首组前无组间休息"
+            val restAfterLabel = if (index == sortedSets.lastIndex) {
+                val finalGapMs = (sessionWithSets.session.sessionEndedAtUtcEpochMs - set.endedAtUtcEpochMs)
+                    .coerceAtLeast(0L)
+                if (finalGapMs > 0L) {
+                    "本组后休息 ${formatStopwatch(finalGapMs)}"
+                } else {
+                    "本组后结束训练"
+                }
             } else {
-                val previousSet = sortedSets[index - 1]
-                val restGapMs = (set.startedAtUtcEpochMs - previousSet.endedAtUtcEpochMs).coerceAtLeast(0L)
-                "组间休息 ${formatStopwatch(restGapMs)}"
+                val nextSet = sortedSets[index + 1]
+                val restGapMs = (nextSet.startedAtUtcEpochMs - set.endedAtUtcEpochMs).coerceAtLeast(0L)
+                "本组后休息 ${formatStopwatch(restGapMs)}"
             }
             HistorySetDetailPreview(
+                setId = set.setId,
                 setIndex = set.setIndex,
-                repCountLabel = "${set.completedRepCount} 次",
+                repValue = repDrafts.getOrNull(index) ?: set.completedRepCount.toString(),
                 durationLabel = formatStopwatch(set.elapsedMs),
-                restLabel = restLabel,
+                restAfterLabel = restAfterLabel,
                 endedAtLabel = UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs)),
             )
         },
+        isSaveEnabled = hasPendingEdits,
     )
 }
 
@@ -1412,10 +1553,27 @@ private fun formatStopwatch(durationMs: Long): String {
     return "%02d:%02d".format(minutes, seconds)
 }
 
-private fun CadencePhase.labelZh(): String = when (this) {
-    CadencePhase.Lowering -> "下落阶段"
-    CadencePhase.BottomHold -> "停顿阶段"
-    CadencePhase.Rising -> "起身阶段"
+private fun restSpeechCue(snapshot: com.liuyi.trainer.model.RestSnapshot): Pair<String, String>? {
+    if (snapshot.isOvertime) {
+        return if (snapshot.overtimeMs < 1_000L) {
+            "rest-overtime" to "超时"
+        } else {
+            null
+        }
+    }
+
+    val remainingSeconds = ((snapshot.remainingMs + 999L) / 1000L).toInt()
+    return if (remainingSeconds in 1..3) {
+        "rest-$remainingSeconds" to remainingSeconds.toString()
+    } else {
+        null
+    }
+}
+
+private fun CadencePhase.displayLabelZh(): String = when (this) {
+    CadencePhase.Lowering -> "下落"
+    CadencePhase.BottomHold -> "停顿"
+    CadencePhase.Rising -> "起身"
 }
 
 private fun CadencePhase.voiceCue(): String = when (this) {

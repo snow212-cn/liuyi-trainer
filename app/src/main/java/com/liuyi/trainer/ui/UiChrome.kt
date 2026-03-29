@@ -39,6 +39,8 @@ private val InnerPanelShape = RoundedCornerShape(18.dp)
 fun PrisonSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val stripeColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.035f)
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -60,7 +62,7 @@ fun PrisonSurface(
                     var startX = -size.height
                     while (startX < size.width + size.height) {
                         drawLine(
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.035f),
+                            color = stripeColor,
                             start = Offset(startX, 0f),
                             end = Offset(startX + size.height, size.height),
                             strokeWidth = stroke,

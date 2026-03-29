@@ -1,6 +1,6 @@
 # 对话过长时的续做说明
 
-日期：2026-03-28
+日期：2026-03-29
 
 ## 新对话开头直接发这句
 
@@ -23,8 +23,10 @@
 
 ## 这轮最新结论
 
-- 当前仍以静态原型确认方向，先不要盲改 Android 视觉
-- 这轮重点是把界面气质拉回《囚徒健身》，不是继续做普通健身 App 风格
+- `prototype/ui-redesign.html` 现在已经得到用户确认，属于当前唯一 UI 基准
+- 后续 Android 成品必须以这份 HTML 稿为准推进，不允许再回到旧 UI 自由发挥
+- 允许直接在现有 Android 代码基础上重构和修正，不需要推倒重写
+- 这轮重点仍然是把界面气质拉回《囚徒健身》，不是继续做普通健身 App 风格
 - 用户当前最在意的页面是：
   - 首页
   - 训练进行页
@@ -34,6 +36,11 @@
 
 ## 本轮已落地成果
 
+- 已开始按确认后的 HTML 稿重写 Android 正式 UI：
+  - 新增统一 UI 壳层 `app/src/main/java/com/liuyi/trainer/ui/UiChrome.kt`
+  - 首页已重写 `app/src/main/java/com/liuyi/trainer/ui/HomeScreen.kt`
+  - 训练准备 / 训练执行 / 组间休息 / 总结 / 历史列表 / 历史详情 / 动作标准已重写到 `app/src/main/java/com/liuyi/trainer/ui/TrainingFlowScreens.kt`
+  - 主题已重写 `app/src/main/java/com/liuyi/trainer/ui/theme/`
 - 已确认 EPUB 路径：
   - `D:\book\囚徒健身-保罗•威德.epub`
 - 已确认六艺章节映射：
@@ -73,20 +80,21 @@
 
 ## 当前未完成事项
 
-- 用户还未最终确认 v2 静态稿
-- Android Compose 视觉实现还没按 v2 重做
-- 本机没有完成 Android 构建
+- Android Compose 视觉实现还没按已确认的 HTML 稿重做
+- 远程构建链路还没有真正产出 APK
 - 还没有 APK
 - 动作标准正文、示意图、音频素材还没有正式导入
 
 ## 当前官方下一步
 
-1. 先让用户继续看 `OPEN_UI_REDESIGN.bat`
-2. 根据这轮反馈继续收紧 v2 静态稿
-3. 用户确认后，再重做 Android 正式 UI
+1. 以 `prototype/ui-redesign.html` 为唯一 UI 基准，开始改 Android 正式页面
+2. 优先修改首页、训练进行页、历史列表页、历史详情页
+3. 在现有代码基础上持续修正，不要推倒重写
+4. 跑通远程构建，产出第一版可安装 APK
 
 ## 对新的 AI 的要求
 
 - 不要再回去修旧视觉
 - 不要把旧 Android 页面当成当前设计基准
-- 优先以 v2 蓝图和 v2 静态稿为准继续
+- 优先以 `prototype/ui-redesign.html` 为准继续
+- 如果 Android 当前实现与 HTML 稿不一致，应以 HTML 稿为准修正

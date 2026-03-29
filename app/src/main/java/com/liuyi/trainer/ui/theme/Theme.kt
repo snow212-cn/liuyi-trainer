@@ -4,21 +4,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-private val LightColors = darkColorScheme(
+private val PrisonColors = darkColorScheme(
     primary = Clay,
     onPrimary = Chalk,
     primaryContainer = Bronze,
     onPrimaryContainer = Chalk,
-    secondary = Bronze,
-    onSecondary = Chalk,
-    secondaryContainer = Smoke,
+    secondary = Ember,
+    onSecondary = Iron,
+    secondaryContainer = ColorPalettePanel,
     onSecondaryContainer = Chalk,
     background = Asphalt,
     onBackground = Sand,
     surface = ColorPaletteSurface,
     onSurface = Sand,
     surfaceVariant = ColorPalettePanel,
-    onSurfaceVariant = Sand.copy(alpha = 0.72f),
+    onSurfaceVariant = Smoke,
+    outline = Line,
+    surfaceTint = Clay,
 )
 
 @Composable
@@ -26,8 +28,9 @@ fun LiuyiTrainerTheme(
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = LightColors,
+        colorScheme = PrisonColors,
         typography = LiuyiTypography,
         content = content,
     )
 }
+

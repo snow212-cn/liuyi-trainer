@@ -3,6 +3,7 @@ package com.liuyi.trainer.ui
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,15 +21,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,7 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.liuyi.trainer.data.TrainingSessionWithSets
 import com.liuyi.trainer.model.CadencePhase
-import com.liuyi.trainer.model.CadenceProfile
 import com.liuyi.trainer.model.ContentStatus
 import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.MovementFamily
@@ -81,7 +77,7 @@ data class TrainingEntryPreview(
 data class RunningPreview(
     val context: ExerciseContext,
     val currentPhaseLabel: String,
-    val phaseElapsedLabel: String,
+    val phaseSecondLabel: String,
     val phaseCueText: String,
     val currentRepCount: Int,
     val currentSetIndex: Int,
@@ -120,6 +116,7 @@ data class SummaryPreview(
 
 data class StandardsPreview(
     val context: ExerciseContext,
+    val sourceLabel: String,
     val contentStatusLabel: String,
     val statusHint: String,
     val sections: List<Pair<String, String>>,
@@ -128,13 +125,22 @@ data class StandardsPreview(
 data class HistoryRowPreview(
     val sessionId: Long,
     val title: String,
-    val dateLabel: String,
-    val totalsLabel: String,
+    val totalRepsLabel: String,
+    val setCountLabel: String,
     val setPreview: String,
+    val dateLabel: String,
 )
 
 data class HistoryPreview(
     val rows: List<HistoryRowPreview>,
+)
+
+data class HistorySetDetailPreview(
+    val setIndex: Int,
+    val repCountLabel: String,
+    val durationLabel: String,
+    val restLabel: String,
+    val endedAtLabel: String,
 )
 
 data class HistoryDetailPreview(
@@ -142,7 +148,7 @@ data class HistoryDetailPreview(
     val timeRangeLabel: String,
     val totalsLabel: String,
     val metaLines: List<String>,
-    val setDetails: List<String>,
+    val setDetails: List<HistorySetDetailPreview>,
 )
 
 @Composable
@@ -154,87 +160,59 @@ fun TrainingReadyScreen(
     onStartSet: () -> Unit,
     onOpenStandards: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderRow(
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
                 title = "训练准备",
-                action = "返回首页",
+                actionLabel = "返回首页",
                 onAction = onBack,
             )
 
-            CompactStatusStrip(
-                lines = listOf(
-                    "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "进入后不会自动开练，必须由你手动开始本组",
-                ),
-            )
-
-            FocusMetricCard(
-                eyebrow = "READY CHECK",
-                title = preview.context.step.label,
-                metric = "原书节奏 2-1-2",
-                supporting = "每次完整循环 ${preview.cadenceSeconds} 秒 · 休息 ${preview.restPresetLabel}",
-            )
-
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+            SteelPanel {
+                SectionKicker(text = "READY CHECK")
+                Text(
+                    text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = "本次设置",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    TrainingPrepLine(
-                        label = "节奏提示",
-                        value = "落 / 停 / 起",
-                    )
-                    TrainingPrepLine(
-                        label = "语音提示",
-                        value = if (speechEnabled) "开启" else "关闭",
-                    )
-                    OutlinedButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onToggleSpeech(!speechEnabled) },
-                    ) {
-                        Text(if (speechEnabled) "关闭语音提示" else "开启语音提示")
-                    }
+                    MutedBody(text = "原书节奏 2-1-2")
+                    MutedBody(text = preview.restPresetLabel)
                 }
             }
 
-            CompactInfoCard(
-                title = "开始前",
-                lines = listOf(
-                    "先摆好动作起始姿势",
-                    "准备好后再手动开始本组",
-                    "动作标准页只做训练前快速复核",
-                ),
-            )
-
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onStartSet,
-            ) {
-                Text("开始本组")
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "本次设置",
+                    subtitle = "手动开始",
+                )
+                ReadySettingRow(label = "完整循环", value = "${preview.cadenceSeconds} 秒")
+                ReadySettingRow(label = "提示词", value = "落 / 停 / 起")
+                ReadySettingRow(label = "语音提示", value = if (speechEnabled) "开启" else "关闭")
+                SteelSecondaryButton(
+                    text = if (speechEnabled) "关闭语音提示" else "开启语音提示",
+                    onClick = { onToggleSpeech(!speechEnabled) },
+                )
+                MutedBody(text = "进入训练页后不会自动开始，必须由你手动点“开始本组”。")
             }
-            FilledTonalButton(
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenStandards,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("动作标准")
+                SteelPrimaryButton(
+                    text = "开始本组",
+                    onClick = onStartSet,
+                    modifier = Modifier.weight(1f),
+                )
+                SteelSecondaryButton(
+                    text = "动作标准",
+                    onClick = onOpenStandards,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -254,53 +232,69 @@ fun TrainingRunningScreen(
         cueText = preview.phaseCueText,
     )
 
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderRow(
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
                 title = "训练执行",
-                action = "返回首页",
+                actionLabel = "返回首页",
                 onAction = onBack,
             )
 
-            CompactStatusStrip(
+            StatusStrip(
                 lines = listOf(
                     "${preview.context.family.titleZh} · ${preview.context.step.label}",
                     "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组",
                 ),
             )
 
-            CadenceStageHero(
+            CadenceCorePanel(
                 phaseLabel = preview.currentPhaseLabel,
-                phaseElapsedLabel = preview.phaseElapsedLabel,
+                phaseSecondLabel = preview.phaseSecondLabel,
                 cueText = preview.phaseCueText,
-            )
-
-            RunningStatsCard(
-                repCount = preview.currentRepCount,
-                elapsedLabel = preview.sessionElapsedLabel,
-                totalRepCount = preview.totalRepCount,
                 speechEnabled = speechEnabled,
-                onToggleSpeech = { onToggleSpeech(!speechEnabled) },
             )
 
-            Button(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onFinishSet,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("结束本组")
+                MetricPlate(
+                    modifier = Modifier.weight(1f),
+                    label = "本组次数",
+                    value = preview.currentRepCount.toString(),
+                )
+                MetricPlate(
+                    modifier = Modifier.weight(1f),
+                    label = "累计次数",
+                    value = preview.totalRepCount.toString(),
+                )
+                MetricPlate(
+                    modifier = Modifier.weight(1f),
+                    label = "已训练",
+                    value = preview.sessionElapsedLabel,
+                    compact = true,
+                )
             }
-            FilledTonalButton(
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SteelPrimaryButton(
+                    text = "结束本组",
+                    onClick = onFinishSet,
+                    modifier = Modifier.weight(1f),
+                )
+                SteelSecondaryButton(
+                    text = if (speechEnabled) "语音已开" else "语音已关",
+                    onClick = { onToggleSpeech(!speechEnabled) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            SteelSecondaryButton(
+                text = "结束训练",
                 onClick = onCompleteTraining,
-            ) {
-                Text("结束训练")
-            }
+            )
         }
     }
 }
@@ -312,72 +306,60 @@ fun TrainingRestScreen(
     onStartNextSet: () -> Unit,
     onCompleteTraining: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderRow(
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
                 title = "组间休息",
-                action = "返回首页",
+                actionLabel = "返回首页",
                 onAction = onBack,
             )
 
-            CompactStatusStrip(
+            StatusStrip(
                 lines = listOf(
                     "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "已完成 ${preview.completedSetCount} 组 · 共 ${preview.totalRepCount} 次",
+                    "已完成 ${preview.completedSetCount} 组 · 累计 ${preview.totalRepCount} 次",
                     "休息预设 ${preview.presetLabel}",
                 ),
             )
 
-            FocusMetricCard(
-                eyebrow = "REST WINDOW",
-                title = preview.restHeadline,
-                metric = preview.restTimeLabel,
-                supporting = preview.restHint,
-            )
-
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TrainingPrepLine(
-                        label = "已完成组数",
-                        value = "${preview.completedSetCount} 组",
-                    )
-                    TrainingPrepLine(
-                        label = "累计次数",
-                        value = "${preview.totalRepCount} 次",
-                    )
-                    TrainingPrepLine(
-                        label = "休息预设",
-                        value = preview.presetLabel,
-                    )
-                }
+            SteelPanel {
+                SectionKicker(text = "REST WINDOW")
+                Text(
+                    text = preview.restHeadline,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = preview.restTimeLabel,
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                MutedBody(text = preview.restHint)
             }
 
-            Button(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onStartNextSet,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("开始下一组")
+                MetricPlate(modifier = Modifier.weight(1f), label = "已完成组数", value = preview.completedSetCount.toString())
+                MetricPlate(modifier = Modifier.weight(1f), label = "累计次数", value = preview.totalRepCount.toString())
+                MetricPlate(modifier = Modifier.weight(1f), label = "休息预设", value = preview.presetLabel, compact = true)
             }
-            OutlinedButton(
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onCompleteTraining,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("结束本次训练")
+                SteelPrimaryButton(
+                    text = "开始下一组",
+                    onClick = onStartNextSet,
+                    modifier = Modifier.weight(1f),
+                )
+                SteelSecondaryButton(
+                    text = "结束本次训练",
+                    onClick = onCompleteTraining,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -392,120 +374,72 @@ fun TrainingSummaryScreen(
     onUpdateRep: (Int, String) -> Unit,
     onSave: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderRow(
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
                 title = "训练总结",
-                action = "返回上一页",
+                actionLabel = "返回上一页",
                 onAction = onBack,
             )
 
-            FocusMetricCard(
-                eyebrow = "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                title = "${preview.totalSets} 组",
-                metric = "累计 ${preview.totalReps} 次",
-                supporting = "开始 ${preview.sessionStartLabel} · 结束 ${preview.sessionEndLabel}",
-            )
-
-            CompactInfoCard(
-                title = "保存规则",
-                lines = listOf(
-                    if (preview.isEditable) "保存前可以逐组修正次数。" else "当前不是可编辑总结状态。",
-                    if (preview.isSaved) "当前记录已保存到历史。" else "当前记录尚未保存到历史。",
-                ),
-            )
-
-            Card {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+            SteelPanel {
+                SectionKicker(text = "${preview.context.family.titleZh} · ${preview.context.step.label}")
+                Text(
+                    text = "共 ${preview.totalSets} 组 · ${preview.totalReps} 次",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = "分组明细",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    MutedBody(text = "开始 ${preview.sessionStartLabel}")
+                    MutedBody(text = "结束 ${preview.sessionEndLabel}")
+                }
+            }
 
-                    if (preview.setRows.isEmpty()) {
-                        Text(
-                            text = "当前还没有组记录。",
-                            style = MaterialTheme.typography.bodyMedium,
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "保存前校对",
+                    subtitle = if (preview.isSaved) "已保存" else "可修正",
+                )
+                if (preview.setRows.isEmpty()) {
+                    MutedBody(text = "当前还没有完成的组记录。")
+                } else {
+                    preview.setRows.forEachIndexed { index, row ->
+                        SummarySetEditor(
+                            row = row,
+                            editable = preview.isEditable && !preview.isSaved,
+                            onValueChange = { onUpdateRep(index, it) },
                         )
-                    } else {
-                        preview.setRows.forEachIndexed { index, row ->
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "第 ${row.setIndex} 组",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                if (preview.isEditable && !preview.isSaved) {
-                                    OutlinedTextField(
-                                        value = row.repValue,
-                                        onValueChange = { onUpdateRep(index, it) },
-                                        label = { Text("次数") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                    )
-                                } else {
-                                    Text(
-                                        text = "次数 ${row.repValue}",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                                Text(
-                                    text = "时长 ${row.durationLabel} · 结束 ${row.endedAtLabel}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                if (index != preview.setRows.lastIndex) {
-                                    HorizontalDivider()
-                                }
-                            }
+                        if (index != preview.setRows.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
                         }
                     }
                 }
             }
 
-            CompactInfoCard(
-                title = "当前结果",
-                lines = listOf(
-                    "总组数 ${preview.totalSets} 组",
-                    "总次数 ${preview.totalReps} 次",
-                    if (preview.isSaved) "本条记录已写入历史" else "保存前仍可逐组修正次数",
-                ),
-            )
-
-            Button(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onBackHome,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("回到首页")
-            }
-            FilledTonalButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenHistory,
-            ) {
-                Text(if (preview.isSaved) "查看历史" else "历史列表")
+                SteelSecondaryButton(
+                    text = "回到首页",
+                    onClick = onBackHome,
+                    modifier = Modifier.weight(1f),
+                )
+                SteelSecondaryButton(
+                    text = if (preview.isSaved) "查看历史" else "历史列表",
+                    onClick = onOpenHistory,
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             if (preview.isEditable && !preview.isSaved) {
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
+                SteelPrimaryButton(
+                    text = "保存到历史",
                     onClick = onSave,
-                ) {
-                    Text("保存到历史")
-                }
+                )
             }
         }
     }
@@ -518,99 +452,63 @@ fun StandardsScreen(
     onBackHome: () -> Unit,
     onOpenTraining: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderRow(
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
                 title = "动作标准",
-                action = "返回上一页",
+                actionLabel = "返回上一页",
                 onAction = onBack,
             )
 
-            FocusMetricCard(
-                eyebrow = "SOURCE DRILL",
-                title = "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                metric = preview.sections.firstOrNull()?.second ?: "原书章节",
-                supporting = preview.statusHint,
-            )
-
-            StatusBadge(label = preview.contentStatusLabel)
-
-            preview.sections.drop(1).forEach { (title, body) ->
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                        .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = body,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
+            SteelPanel {
+                SectionKicker(text = "原书来源")
+                Text(
+                    text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                MutedBody(text = preview.sourceLabel)
+                StatusBadge(label = preview.contentStatusLabel)
+                MutedBody(text = preview.statusHint)
             }
 
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
+            preview.sections.forEach { (title, body) ->
+                SteelPanel(soft = true) {
                     Text(
-                        text = "示意图位",
+                        text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(160.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(MaterialTheme.colorScheme.surface),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "未来接入原书示意图或提炼后的动作图",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
+                    Text(
+                        text = body,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
 
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onOpenTraining,
-            ) {
-                Text("进入训练")
+            SteelPanel(soft = true) {
+                Text(
+                    text = "示意图位",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                StandardsIllustrationFrame()
             }
-            FilledTonalButton(
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = onBackHome,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("回到首页")
+                SteelPrimaryButton(
+                    text = "进入训练",
+                    onClick = onOpenTraining,
+                    modifier = Modifier.weight(1f),
+                )
+                SteelSecondaryButton(
+                    text = "回到首页",
+                    onClick = onBackHome,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -623,48 +521,46 @@ fun TrainingHistoryScreen(
     onBackHome: () -> Unit,
     onOpenDetail: (Long) -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
+    PrisonSurface {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = 16.dp,
-                vertical = 20.dp,
-            ),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                HeaderRow(
+                ScreenTopBar(
                     title = "训练历史",
-                    action = "返回上一页",
+                    actionLabel = "返回上一页",
                     onAction = onBack,
                 )
             }
 
             if (preview.rows.isEmpty()) {
                 item {
-                    FocusMetricCard(
-                        eyebrow = "暂无数据",
-                        title = "还没有历史记录",
-                        metric = "先完成一次训练",
-                        supporting = "保存后的训练会以可点击列表的形式出现在这里。",
-                    )
+                    SteelPanel {
+                        SectionKicker(text = "暂无数据")
+                        Text(
+                            text = "还没有历史记录",
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        MutedBody(text = "完成一次训练并保存后，就会在这里看到可点击记录。")
+                    }
                 }
             } else {
                 items(preview.rows, key = { it.sessionId }) { row ->
-                    HistoryRowCard(
+                    HistoryListCard(
                         preview = row,
-                        onOpenDetail = { onOpenDetail(row.sessionId) },
+                        onClick = { onOpenDetail(row.sessionId) },
                     )
                 }
             }
 
             item {
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
+                SteelSecondaryButton(
+                    text = "回到首页",
                     onClick = onBackHome,
-                ) {
-                    Text("回到首页")
-                }
+                )
             }
         }
     }
@@ -678,103 +574,592 @@ fun TrainingHistoryDetailScreen(
     onReuse: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderRow(
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
                 title = "历史详情",
-                action = "返回列表",
+                actionLabel = "返回列表",
                 onAction = onBack,
             )
 
             if (preview == null) {
-                FocusMetricCard(
-                    eyebrow = "无可显示内容",
-                    title = "没有选中记录",
-                    metric = "返回列表重新选择",
-                    supporting = "当前没有找到对应的历史训练记录。",
-                )
+                SteelPanel {
+                    SectionKicker(text = "无可显示内容")
+                    Text(
+                        text = "没有选中记录",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    MutedBody(text = "返回历史列表后重新选择一条记录。")
+                }
             } else {
-                FocusMetricCard(
-                    eyebrow = preview.title,
-                    title = preview.totalsLabel,
-                    metric = preview.timeRangeLabel,
-                    supporting = "下方可直接载入当前训练或删除本条记录。",
+                SteelPanel {
+                    SectionKicker(text = preview.title)
+                    Text(
+                        text = preview.totalsLabel,
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    MutedBody(text = preview.timeRangeLabel)
+                }
+
+                DetailActionRow(
+                    onReuse = onReuse,
+                    onDelete = onDelete,
                 )
 
-                CompactInfoCard(
-                    title = "本次训练信息",
-                    lines = preview.metaLines,
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FilledTonalButton(
-                        modifier = Modifier.weight(1f),
-                        onClick = onReuse,
-                    ) {
-                        Text("载入为当前训练")
-                    }
-                    OutlinedButton(
-                        modifier = Modifier.weight(1f),
-                        onClick = onDelete,
-                    ) {
-                        Text("删除记录")
+                SteelPanel(soft = true) {
+                    SteelSectionHeader(
+                        title = "本次训练信息",
+                        subtitle = "记录",
+                    )
+                    preview.metaLines.forEach { line ->
+                        MutedBody(text = line)
                     }
                 }
 
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            text = "分组详情",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        preview.setDetails.forEachIndexed { index, detail ->
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                                ) {
-                                    Text(
-                                        text = detail,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
-                                if (index != preview.setDetails.lastIndex) {
-                                    HorizontalDivider()
-                                }
-                            }
+                SteelPanel(soft = true) {
+                    SteelSectionHeader(
+                        title = "分组详情",
+                        subtitle = "${preview.setDetails.size} 组",
+                    )
+                    preview.setDetails.forEachIndexed { index, detail ->
+                        DetailSetBlock(detail = detail)
+                        if (index != preview.setDetails.lastIndex) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
                         }
                     }
                 }
             }
 
-            Button(
-                modifier = Modifier.fillMaxWidth(),
+            SteelSecondaryButton(
+                text = "回到首页",
                 onClick = onBackHome,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusStrip(lines: List<String>) {
+    SteelPanel(soft = true) {
+        lines.forEach { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReadySettingRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+@Composable
+private fun CadenceCorePanel(
+    phaseLabel: String,
+    phaseSecondLabel: String,
+    cueText: String,
+    speechEnabled: Boolean,
+) {
+    SteelPanel {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionKicker(text = "CADENCE CORE")
+            MutedBody(text = if (speechEnabled) "语音 开启" else "语音 关闭")
+        }
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(246.dp)
+                    .clip(CircleShape)
+                    .border(
+                        width = 8.dp,
+                        brush = Brush.sweepGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary,
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                MaterialTheme.colorScheme.primary,
+                            ),
+                        ),
+                        shape = CircleShape,
+                    )
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                MaterialTheme.colorScheme.background,
+                            ),
+                        ),
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("回到首页")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = phaseLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                    Text(
+                        text = phaseSecondLabel,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = cueText,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
+        }
+        CueTrack(activeCue = cueText)
+        BreathBars(activeCue = cueText)
+    }
+}
+
+@Composable
+private fun CueTrack(activeCue: String) {
+    val cues = listOf("落", "停", "起")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        cues.forEach { cue ->
+            val active = cue == activeCue
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (active) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.30f)
+                        },
+                    )
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = cue,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (active) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BreathBars(activeCue: String) {
+    val cues = listOf("落", "停", "起")
+    val activeIndex = cues.indexOf(activeCue).coerceAtLeast(0)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        listOf(10.dp, 18.dp, 28.dp, 18.dp, 10.dp).forEachIndexed { index, height ->
+            val highlighted = index == activeIndex + 1
+            Box(
+                modifier = Modifier
+                    .width(8.dp)
+                    .height(height)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (highlighted) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        },
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetricPlate(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                shape = RoundedCornerShape(20.dp),
+            )
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.94f))
+            .padding(horizontal = 10.dp, vertical = 14.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = value,
+                style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummarySetEditor(
+    row: SummarySetRowPreview,
+    editable: Boolean,
+    onValueChange: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "第 ${row.setIndex} 组",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "结束 ${row.endedAtLabel}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (editable) {
+            OutlinedTextField(
+                value = row.repValue,
+                onValueChange = onValueChange,
+                label = { Text("次数") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            Text(
+                text = "次数 ${row.repValue}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        MutedBody(text = "时长 ${row.durationLabel}")
+    }
+}
+
+@Composable
+private fun StandardsIllustrationFrame() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.30f),
+                shape = RoundedCornerShape(20.dp),
+            )
+            .background(
+                brush = Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.20f),
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "未来接入 EPUB 摘录图或用户提供的示意图",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 18.dp),
+        )
+    }
+}
+
+@Composable
+private fun DetailActionRow(
+    onReuse: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        CompactActionPill(
+            text = "编辑待接入",
+            enabled = false,
+            onClick = {},
+            modifier = Modifier.weight(1f),
+        )
+        CompactActionPill(
+            text = "载入训练",
+            enabled = true,
+            onClick = onReuse,
+            modifier = Modifier.weight(1f),
+        )
+        CompactActionPill(
+            text = "删除记录",
+            enabled = true,
+            onClick = onDelete,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun CompactActionPill(
+    text: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.12f else 0.05f),
+                shape = RoundedCornerShape(999.dp),
+            )
+            .background(
+                if (enabled) {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.26f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.14f)
+                },
+            )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun HistoryListCard(
+    preview: HistoryRowPreview,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(PrisonPanelShape)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                shape = PrisonPanelShape,
+            )
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        MaterialTheme.colorScheme.surface,
+                    ),
+                ),
+            )
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text(
+                    text = preview.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = preview.totalRepsLabel,
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.End,
+                )
+            }
+            HistorySetBand(
+                setCountLabel = preview.setCountLabel,
+                setPreview = preview.setPreview,
+            )
+            Text(
+                text = preview.dateLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistorySetBand(
+    setCountLabel: String,
+    setPreview: String,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.36f))
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = setCountLabel,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+            Text(
+                text = setPreview,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.End,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailSetBlock(detail: HistorySetDetailPreview) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "第 ${detail.setIndex} 组",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = detail.repCountLabel,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            MutedBody(text = "时长 ${detail.durationLabel}")
+            MutedBody(text = detail.restLabel)
+        }
+        MutedBody(text = "结束 ${detail.endedAtLabel}")
+    }
+}
+
+@Composable
+private fun StatusBadge(label: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    }
+}
+
+@Composable
+private fun TrainingVoiceCueEffect(
+    enabled: Boolean,
+    cueText: String,
+) {
+    val context = LocalContext.current
+    var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
+
+    DisposableEffect(context) {
+        val engine = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                textToSpeech?.language = Locale.SIMPLIFIED_CHINESE
+            }
+        }
+        textToSpeech = engine
+
+        onDispose {
+            engine.stop()
+            engine.shutdown()
+            textToSpeech = null
+        }
+    }
+
+    LaunchedEffect(enabled, cueText, textToSpeech) {
+        if (enabled) {
+            textToSpeech?.speak(cueText, TextToSpeech.QUEUE_FLUSH, null, cueText)
         }
     }
 }
@@ -800,19 +1185,16 @@ fun buildRunningPreview(
         cadenceProfile = state.cadenceProfile,
         elapsedMs = Duration.between(state.setStartedAtUtc, nowUtc).toMillis(),
     )
-    val phaseTotalMs = phaseDurationMs(progress.phase, state.cadenceProfile)
-    val sessionElapsed = Duration.between(state.sessionStartedAtUtc, nowUtc)
-
     return RunningPreview(
         context = context,
         currentPhaseLabel = progress.phase.labelZh(),
-        phaseElapsedLabel = formatPhaseElapsed(progress.phaseElapsedMs, phaseTotalMs),
+        phaseSecondLabel = String.format(Locale.getDefault(), "%.1f", progress.phaseElapsedMs / 1000f),
         phaseCueText = progress.phase.voiceCue(),
         currentRepCount = progress.completedRepCount,
         currentSetIndex = state.completedSets.size + 1,
         completedSetCount = state.completedSets.size,
         totalRepCount = state.completedSets.sumOf { it.completedRepCount } + progress.completedRepCount,
-        sessionElapsedLabel = formatDuration(sessionElapsed),
+        sessionElapsedLabel = formatStopwatch(Duration.between(state.sessionStartedAtUtc, nowUtc).toMillis()),
     )
 }
 
@@ -826,7 +1208,6 @@ fun buildRestPreview(
         is TrainingSessionState.RestOvertime -> state
         else -> error("Rest preview requires a rest state.")
     }
-
     val restStartedAtUtc = when (restState) {
         is TrainingSessionState.RestRunning -> restState.restStartedAtUtc
         is TrainingSessionState.RestOvertime -> restState.restStartedAtUtc
@@ -842,7 +1223,6 @@ fun buildRestPreview(
         is TrainingSessionState.RestOvertime -> restState.completedSets
         else -> error("Unsupported rest state.")
     }
-
     val snapshot = snapshotRestState(
         restStartedAtUtc = restStartedAtUtc,
         restPreset = restPreset,
@@ -854,16 +1234,8 @@ fun buildRestPreview(
         completedSetCount = completedSets.size,
         totalRepCount = completedSets.sumOf { it.completedRepCount },
         restHeadline = if (snapshot.isOvertime) "休息超时" else "建议休息中",
-        restTimeLabel = if (snapshot.isOvertime) {
-            "+${formatStopwatch(snapshot.overtimeMs)}"
-        } else {
-            formatStopwatch(snapshot.remainingMs)
-        },
-        restHint = if (snapshot.isOvertime) {
-            "已超出建议休息时长，继续显示正计时。"
-        } else {
-            "倒计时结束前可随时开始下一组。"
-        },
+        restTimeLabel = if (snapshot.isOvertime) "+${formatStopwatch(snapshot.overtimeMs)}" else formatStopwatch(snapshot.remainingMs),
+        restHint = if (snapshot.isOvertime) "已超出建议休息时长，继续显示正计时。" else "倒计时结束前可随时开始下一组。",
         presetLabel = "${restPreset.defaultRestSeconds} 秒",
     )
 }
@@ -886,25 +1258,21 @@ fun buildSummaryPreview(
             sessionEndedAtUtc = state.sessionEndedAtUtc
             completedSets = state.completedSets
         }
-
         is TrainingSessionState.SetRunning -> {
             sessionStartedAtUtc = state.sessionStartedAtUtc
             sessionEndedAtUtc = nowUtc
             completedSets = state.completedSets
         }
-
         is TrainingSessionState.RestRunning -> {
             sessionStartedAtUtc = state.sessionStartedAtUtc
             sessionEndedAtUtc = nowUtc
             completedSets = state.completedSets
         }
-
         is TrainingSessionState.RestOvertime -> {
             sessionStartedAtUtc = state.sessionStartedAtUtc
             sessionEndedAtUtc = nowUtc
             completedSets = state.completedSets
         }
-
         TrainingSessionState.Idle -> {
             sessionStartedAtUtc = nowUtc
             sessionEndedAtUtc = nowUtc
@@ -947,13 +1315,12 @@ fun buildStandardsPreview(context: ExerciseContext): StandardsPreview {
 
     return StandardsPreview(
         context = context,
+        sourceLabel = sourceChapterTitle(context.family.id),
         contentStatusLabel = statusLabel,
         statusHint = hint,
         sections = listOf(
-            "原书来源" to sourceChapterTitle(context.family.id),
-            "标准说明" to "这里将承接该式来自原书的核心动作标准，只保留训练前真正需要快速复核的内容。",
-            "动作要点" to "未来会放入动作路径、发力顺序、呼吸与节奏配合，以及是否需要借助墙面、篮球或其他辅助。",
-            "常见错误" to "未来会单独提炼容易出错的姿势、代偿与节奏问题，避免把整章内容直接塞进训练页。",
+            "标准说明" to "这里将放该式来自原书的核心动作标准，不做整章阅读，只保留训练前真正需要快速复核的内容。",
+            "动作要点 / 常见错误" to "这里承接关键动作路径、呼吸、节奏配合，以及是否需要借助墙面、篮球等辅助信息。",
         ),
     )
 }
@@ -962,19 +1329,8 @@ fun buildHistoryPreview(
     sessions: List<TrainingSessionWithSets>,
 ): HistoryPreview = HistoryPreview(
     rows = sessions.map { sessionWithSets ->
-        val family = ExerciseCatalog.families.firstOrNull {
-            it.id == sessionWithSets.session.familyId
-        }
-        val step = family?.steps?.firstOrNull {
-            it.level == sessionWithSets.session.stepLevel
-        }
-        val setPreview = sessionWithSets.sets
-            .sortedBy { it.setIndex }
-            .joinToString(separator = " / ") { set ->
-                set.completedRepCount.toString()
-            }
-            .ifBlank { "暂无分组明细" }
-
+        val family = ExerciseCatalog.families.firstOrNull { it.id == sessionWithSets.session.familyId }
+        val step = family?.steps?.firstOrNull { it.level == sessionWithSets.session.stepLevel }
         HistoryRowPreview(
             sessionId = sessionWithSets.session.sessionId,
             title = buildString {
@@ -982,9 +1338,13 @@ fun buildHistoryPreview(
                 append(" · ")
                 append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
             },
+            totalRepsLabel = sessionWithSets.session.totalReps.toString(),
+            setCountLabel = "${sessionWithSets.session.totalSets} 组",
+            setPreview = sessionWithSets.sets
+                .sortedBy { it.setIndex }
+                .joinToString(separator = " / ") { set -> set.completedRepCount.toString() }
+                .ifBlank { "暂无分组明细" },
             dateLabel = UiTimeFormatter.format(Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)),
-            totalsLabel = "共 ${sessionWithSets.session.totalSets} 组 · ${sessionWithSets.session.totalReps} 次",
-            setPreview = setPreview,
         )
     },
 )
@@ -996,16 +1356,11 @@ fun buildHistoryDetailPreview(
         return null
     }
 
-    val family = ExerciseCatalog.families.firstOrNull {
-        it.id == sessionWithSets.session.familyId
-    }
-    val step = family?.steps?.firstOrNull {
-        it.level == sessionWithSets.session.stepLevel
-    }
+    val family = ExerciseCatalog.families.firstOrNull { it.id == sessionWithSets.session.familyId }
+    val step = family?.steps?.firstOrNull { it.level == sessionWithSets.session.stepLevel }
     val startedAt = Instant.ofEpochMilli(sessionWithSets.session.sessionStartedAtUtcEpochMs)
     val endedAt = Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)
-    val sessionDurationMs = (sessionWithSets.session.sessionEndedAtUtcEpochMs - sessionWithSets.session.sessionStartedAtUtcEpochMs)
-        .coerceAtLeast(0L)
+    val sessionDurationMs = (sessionWithSets.session.sessionEndedAtUtcEpochMs - sessionWithSets.session.sessionStartedAtUtcEpochMs).coerceAtLeast(0L)
     val sortedSets = sessionWithSets.sets.sortedBy { it.setIndex }
 
     return HistoryDetailPreview(
@@ -1015,56 +1370,39 @@ fun buildHistoryDetailPreview(
             append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
         },
         timeRangeLabel = "开始 ${UiTimeFormatter.format(startedAt)} · 结束 ${UiTimeFormatter.format(endedAt)}",
-        totalsLabel = "共 ${sessionWithSets.session.totalSets} 组，累计 ${sessionWithSets.session.totalReps} 次",
+        totalsLabel = "共 ${sessionWithSets.session.totalSets} 组 · ${sessionWithSets.session.totalReps} 次",
         metaLines = listOf(
             "训练时长 ${formatStopwatch(sessionDurationMs)}",
             "休息预设 ${sessionWithSets.session.restPresetSeconds} 秒",
-            "下方逐组显示结束时间与实际组间休息",
+            "下方逐组显示每组的实际组间休息与结束时间",
         ),
         setDetails = sortedSets.mapIndexed { index, set ->
-            val restDetail = if (index == 0) {
+            val restLabel = if (index == 0) {
                 "首组前无组间休息"
             } else {
                 val previousSet = sortedSets[index - 1]
                 val restGapMs = (set.startedAtUtcEpochMs - previousSet.endedAtUtcEpochMs).coerceAtLeast(0L)
                 "组间休息 ${formatStopwatch(restGapMs)}"
             }
-            buildString {
-                append("第 ${set.setIndex} 组 · ${set.completedRepCount} 次 · 时长 ${formatStopwatch(set.elapsedMs)}")
-                append(" · ")
-                append(restDetail)
-                append(" · 结束 ${UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs))}")
-            }
-            },
+            HistorySetDetailPreview(
+                setIndex = set.setIndex,
+                repCountLabel = "${set.completedRepCount} 次",
+                durationLabel = formatStopwatch(set.elapsedMs),
+                restLabel = restLabel,
+                endedAtLabel = UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs)),
+            )
+        },
     )
 }
 
 private fun sourceChapterTitle(familyId: String): String = when (familyId) {
-    "pushup" -> "第五章 俯卧撑"
-    "squat" -> "第六章 深蹲"
-    "pullup" -> "第七章 引体向上"
-    "leg_raise" -> "第八章 举腿"
-    "bridge" -> "第九章 桥"
-    "handstand_pushup" -> "第十章 倒立撑"
+    "pushup" -> "第五章 · text00013.html"
+    "squat" -> "第六章 · text00014.html"
+    "pullup" -> "第七章 · text00015.html"
+    "leg_raise" -> "第八章 · text00016.html"
+    "bridge" -> "第九章 · text00017.html"
+    "handstand_pushup" -> "第十章 · text00018.html"
     else -> "六艺章节"
-}
-
-private fun phaseDurationMs(
-    phase: CadencePhase,
-    cadence: CadenceProfile,
-): Long = when (phase) {
-    CadencePhase.Lowering -> cadence.eccentricSeconds * 1000L
-    CadencePhase.BottomHold -> cadence.bottomPauseSeconds * 1000L
-    CadencePhase.Rising -> cadence.concentricSeconds * 1000L
-}
-
-private fun formatPhaseElapsed(
-    phaseElapsedMs: Long,
-    phaseTotalMs: Long,
-): String {
-    val elapsed = phaseElapsedMs / 1000f
-    val total = phaseTotalMs / 1000f
-    return String.format(Locale.getDefault(), "%.1f / %.1f 秒", elapsed, total)
 }
 
 private fun formatStopwatch(durationMs: Long): String {
@@ -1074,12 +1412,10 @@ private fun formatStopwatch(durationMs: Long): String {
     return "%02d:%02d".format(minutes, seconds)
 }
 
-private fun formatDuration(duration: Duration): String = formatStopwatch(duration.toMillis())
-
 private fun CadencePhase.labelZh(): String = when (this) {
-    CadencePhase.Lowering -> "下落"
-    CadencePhase.BottomHold -> "停顿"
-    CadencePhase.Rising -> "起身"
+    CadencePhase.Lowering -> "下落阶段"
+    CadencePhase.BottomHold -> "停顿阶段"
+    CadencePhase.Rising -> "起身阶段"
 }
 
 private fun CadencePhase.voiceCue(): String = when (this) {
@@ -1088,523 +1424,16 @@ private fun CadencePhase.voiceCue(): String = when (this) {
     CadencePhase.Rising -> "起"
 }
 
-@Composable
-private fun HeaderRow(
-    title: String,
-    action: String,
-    onAction: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Bold,
-        )
-        OutlinedButton(onClick = onAction) {
-            Text(action)
-        }
-    }
-}
-
-@Composable
-private fun CompactStatusStrip(lines: List<String>) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            lines.forEach { line ->
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FocusMetricCard(
-    eyebrow: String,
-    title: String,
-    metric: String,
-    supporting: String,
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = eyebrow,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = metric,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = supporting,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun RunningStatsCard(
-    repCount: Int,
-    elapsedLabel: String,
-    totalRepCount: Int,
-    speechEnabled: Boolean,
-    onToggleSpeech: () -> Unit,
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            RunningMetricBox(
-                modifier = Modifier.fillMaxWidth(),
-                label = "已训练",
-                value = elapsedLabel,
-                emphasized = true,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                RunningMetricBox(
-                    modifier = Modifier.weight(1f),
-                    label = "本组次数",
-                    value = repCount.toString(),
-                )
-                RunningMetricBox(
-                    modifier = Modifier.weight(1f),
-                    label = "累计次数",
-                    value = totalRepCount.toString(),
-                )
-            }
-
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onToggleSpeech,
-            ) {
-                Text(if (speechEnabled) "语音提示已开启" else "语音提示已关闭")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CadenceStageHero(
-    phaseLabel: String,
-    phaseElapsedLabel: String,
-    cueText: String,
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = "CADENCE CORE",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Box(
-                modifier = Modifier
-                    .size(220.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(
-                        width = 6.dp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        shape = CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = phaseLabel,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = cueText,
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = phaseElapsedLabel,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
-
-            PhaseCueTrack(activeCue = cueText)
-            BreathPulseRow(activeCue = cueText)
-        }
-    }
-}
-
-@Composable
-private fun BreathPulseRow(activeCue: String) {
-    val activeIndex = listOf("落", "停", "起").indexOf(activeCue).coerceAtLeast(0)
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        listOf(12.dp, 20.dp, 32.dp, 20.dp, 12.dp).forEachIndexed { index, height ->
-            val highlighted = index == activeIndex + 1
-            Box(
-                modifier = Modifier
-                    .width(8.dp)
-                    .height(height)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(
-                        if (highlighted) MaterialTheme.colorScheme.secondary
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                    ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PhaseCueTrack(activeCue: String) {
-    val cues = listOf("落", "停", "起")
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        cues.forEach { cue ->
-            val active = cue == activeCue
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (active) MaterialTheme.colorScheme.secondaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = cue,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (active) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RunningMetricBox(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    emphasized: Boolean = false,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                if (emphasized) {
-                    MaterialTheme.colorScheme.secondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            )
-            .padding(horizontal = 12.dp, vertical = 14.dp),
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = value,
-                style = if (emphasized) {
-                    MaterialTheme.typography.displaySmall
-                } else {
-                    MaterialTheme.typography.titleLarge
-                },
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun TrainingPrepLine(
-    label: String,
-    value: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.End,
-        )
-    }
-}
-
-@Composable
-private fun HistoryRowCard(
-    preview: HistoryRowPreview,
-    onOpenDetail: () -> Unit,
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-        onClick = onOpenDetail,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = preview.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = preview.dateLabel,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = preview.totalsLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                )
-            }
-            HistorySetBand(setPreview = preview.setPreview)
-        }
-    }
-}
-
-@Composable
-private fun HistorySetBand(setPreview: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Text(
-            text = setPreview,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@Composable
-private fun CompactInfoCard(
-    title: String,
-    lines: List<String>,
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            lines.forEach { line ->
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingToggleCard(
-    title: String,
-    value: String,
-    hint: String,
-    onToggle: () -> Unit,
-) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(0.75f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = "$value · $hint",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            OutlinedButton(onClick = onToggle) {
-                Text(if (value == "开启") "关闭" else "开启")
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusBadge(label: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = MaterialTheme.shapes.large,
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-private fun TrainingVoiceCueEffect(
-    enabled: Boolean,
-    cueText: String,
-) {
-    val context = LocalContext.current
-    var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
-
-    DisposableEffect(context) {
-        val engine = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                textToSpeech?.language = Locale.SIMPLIFIED_CHINESE
-            }
-        }
-        textToSpeech = engine
-
-        onDispose {
-            engine.stop()
-            engine.shutdown()
-            textToSpeech = null
-        }
-    }
-
-    LaunchedEffect(enabled, cueText, textToSpeech) {
-        if (enabled) {
-            textToSpeech?.speak(cueText, TextToSpeech.QUEUE_FLUSH, null, cueText)
-        }
-    }
-}
-
 fun defaultExerciseContext(): ExerciseContext {
     val family = ExerciseCatalog.families.first()
-    val step = family.steps[2]
+    val step = family.steps[3]
     return ExerciseContext(
         family = family,
         step = step,
     )
 }
 
-fun defaultRestPreset(): RestPreset = RestPreset(defaultRestSeconds = 90)
+fun defaultRestPreset(): RestPreset = RestPreset(
+    defaultRestSeconds = 90,
+    presetOptionsSeconds = listOf(45, 60, 90, 120, 180),
+)

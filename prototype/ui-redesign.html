@@ -35,7 +35,7 @@
     .topbar { grid-template-columns: 1.2fr 0.8fr; }
     .screens { grid-template-columns: 360px 1fr; align-items: start; }
 
-    .panel, .screen-card, .history-item, .family-tile, .rest-notch, .metric, .step-pip, .step-neighbor {
+    .panel, .screen-card, .history-item, .family-tile, .rest-notch, .metric, .step-neighbor {
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -176,10 +176,17 @@
     }
 
     .current-step-name { font-size: 22px; font-weight: 900; line-height: 1.15; margin-bottom: 4px; }
-    .step-pips { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
-    .step-pip { padding: 9px 0; text-align: center; background: linear-gradient(180deg, #3a342f, #211e1b); font-size: 12px; font-weight: 800; cursor: pointer; border-radius: 14px; }
-    .step-pip.active { background: linear-gradient(180deg, rgba(182, 90, 42, 0.44), #2b211b); border-color: rgba(210, 176, 124, 0.35); color: #fff4e7; }
-    .step-neighbors { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .step-progress {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .step-neighbors { display: grid; grid-template-columns: 0.95fr 1.1fr 0.95fr; gap: 8px; }
     .step-neighbor { padding: 10px 12px; background: linear-gradient(180deg, #3a342f, #211e1b); min-height: 66px; cursor: pointer; }
     .step-neighbor.current { background: linear-gradient(180deg, rgba(255, 240, 218, 0.08), #312620); border-color: rgba(210, 176, 124, 0.35); }
     .neighbor-kicker { color: var(--sand); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -260,9 +267,9 @@
     .breath span:nth-child(4) { height: 18px; animation-delay: 0.3s; }
     .breath span:nth-child(5) { height: 10px; animation-delay: 0.4s; }
 
-    .run-bottom { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12px; margin-bottom: 12px; }
+    .run-bottom { display: grid; grid-template-columns: 1fr 1fr 0.9fr; gap: 12px; margin-bottom: 12px; }
 
-    .rep-main, .rep-side {
+    .rep-main, .rep-side, .rep-tail {
       padding: 14px;
       border: 1px solid var(--line);
       border-radius: 20px;
@@ -273,12 +280,32 @@
     .rep-main-value { font-size: 56px; line-height: 1; margin-top: 6px; }
 
     .rep-side {
+      text-align: center;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
       gap: 6px;
+      color: var(--ink);
+    }
+
+    .rep-side-value {
+      font-family: Impact, Haettenschweiler, "Arial Narrow Bold", "SimHei", sans-serif;
+      font-size: 46px;
+      line-height: 1;
+    }
+
+    .rep-tail {
+      display: grid;
+      align-content: center;
+      gap: 8px;
       color: var(--muted);
-      font-size: 13px;
+    }
+
+    .rep-tail-value {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff4e7;
     }
 
     .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -313,11 +340,28 @@
     .history-side { align-items: flex-start; }
     .history-total { font-size: 32px; line-height: 1; color: #fff4e7; }
     .history-menu { color: var(--muted); font-size: 22px; line-height: 1; padding-left: 4px; }
-    .history-subline { font-size: 13px; color: var(--muted); }
-    .history-sets { color: var(--ink); font-size: 16px; font-weight: 900; letter-spacing: 0.03em; }
+    .history-subline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .history-sets { color: var(--sand); font-size: 13px; font-weight: 900; letter-spacing: 0.08em; }
+    .history-set-values { color: var(--ink); font-size: 18px; font-weight: 900; letter-spacing: 0.03em; }
+    .history-date { color: var(--muted); font-size: 12px; }
     .actions3 { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
     .action { border: 1px solid var(--line); border-radius: 999px; padding: 9px 10px; text-align: center; font-size: 12px; background: rgba(255, 255, 255, 0.04); }
     .line { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .detail-set { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .detail-set:last-child { border-bottom: 0; }
+    .detail-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .detail-meta { display: flex; justify-content: flex-start; align-items: center; gap: 18px; }
+    .detail-top { margin-bottom: 8px; }
+    .detail-reps { font-size: 22px; font-weight: 900; color: #fff4e7; }
+    .detail-meta { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
     .frame {
       height: 150px;
@@ -406,7 +450,7 @@
                   <div class="meta">当前式名</div>
                 </div>
               </div>
-              <div class="step-pips" id="stepPips"></div>
+              <div class="step-progress"><span id="stepHead">第4式</span><span id="stepProgress">4 / 10</span></div>
               <div class="step-neighbors" id="stepNeighbors"></div>
             </div>
           </div>
@@ -455,19 +499,18 @@
             <div class="breath"><span></span><span></span><span></span><span></span><span></span></div>
           </div>
           <div class="run-bottom">
-            <div class="rep-main" style="grid-column: span 2;">
-              <div class="meta">已训练</div>
-              <div class="rep-main-value">03:18</div>
-            </div>
-          </div>
-          <div class="run-bottom">
             <div class="rep-main">
               <div class="meta">本组次数</div>
               <div class="rep-main-value">6</div>
             </div>
             <div class="rep-side">
+              <div class="meta">累计次数</div>
+              <div class="rep-side-value">13</div>
+            </div>
+            <div class="rep-tail">
+              <div class="meta">已训练</div>
+              <div class="rep-tail-value">03:18</div>
               <div>已完成 1 组</div>
-              <div>累计 13 次</div>
             </div>
           </div>
           <div class="quick">
@@ -523,40 +566,40 @@
             <div class="history-head">
               <div>
                 <strong>俯卧撑 · 半俯卧撑</strong>
-                <div class="meta">3月28日 09:49</div>
               </div>
               <div class="history-side">
                 <div class="history-total">31</div>
                 <div class="history-menu">⋯</div>
               </div>
             </div>
-            <div class="history-subline"><span class="history-sets">4 组</span><span>8 / 7 / 8 / 8</span></div>
+            <div class="history-subline"><span class="history-sets">4 组</span><span class="history-set-values">8 / 7 / 8 / 8</span></div>
+            <div class="history-date">3月28日 09:49</div>
           </div>
           <div class="history-item">
             <div class="history-head">
               <div>
                 <strong>深蹲 · 支撑深蹲</strong>
-                <div class="meta">3月27日 18:16</div>
               </div>
               <div class="history-side">
                 <div class="history-total">54</div>
                 <div class="history-menu">⋯</div>
               </div>
             </div>
-            <div class="history-subline"><span class="history-sets">5 组</span><span>12 / 11 / 10 / 11 / 10</span></div>
+            <div class="history-subline"><span class="history-sets">5 组</span><span class="history-set-values">12 / 11 / 10 / 11 / 10</span></div>
+            <div class="history-date">3月27日 18:16</div>
           </div>
           <div class="history-item">
             <div class="history-head">
               <div>
                 <strong>桥 · 直桥</strong>
-                <div class="meta">3月26日 07:21</div>
               </div>
               <div class="history-side">
                 <div class="history-total">15</div>
                 <div class="history-menu">⋯</div>
               </div>
             </div>
-            <div class="history-subline"><span class="history-sets">3 组</span><span>5 / 5 / 5</span></div>
+            <div class="history-subline"><span class="history-sets">3 组</span><span class="history-set-values">5 / 5 / 5</span></div>
+            <div class="history-date">3月26日 07:21</div>
           </div>
         </div>
 
@@ -573,12 +616,28 @@
             <div class="action">复制训练</div>
             <div class="action">删除记录</div>
           </div>
-            <div class="screen-card"><div class="row"><span>训练时长 11:58</span><span>休息预设 90 秒</span></div></div>
+          <div class="screen-card"><div class="row"><span>训练时长 11:58</span><span>休息预设 90 秒</span></div></div>
           <div class="screen-card">
-            <div class="line">第 1 组 · 8 次 · 时长 02:40 · 首组前无组间休息 · 结束 09:39</div>
-            <div class="line">第 2 组 · 7 次 · 时长 02:15 · 组间休息 01:21 · 结束 09:42</div>
-            <div class="line">第 3 组 · 8 次 · 时长 02:32 · 组间休息 01:16 · 结束 09:45</div>
-            <div class="line">第 4 组 · 8 次 · 时长 02:28 · 组间休息 01:09 · 结束 09:49</div>
+            <div class="detail-set">
+              <div class="detail-top"><strong>第 1 组</strong><span class="detail-reps">8 次</span></div>
+              <div class="detail-meta"><span>时长 02:40</span><span>首组前无组间休息</span></div>
+              <div class="detail-meta"><span>结束 09:39</span></div>
+            </div>
+            <div class="detail-set">
+              <div class="detail-top"><strong>第 2 组</strong><span class="detail-reps">7 次</span></div>
+              <div class="detail-meta"><span>时长 02:15</span><span>组间休息 01:21</span></div>
+              <div class="detail-meta"><span>结束 09:42</span></div>
+            </div>
+            <div class="detail-set">
+              <div class="detail-top"><strong>第 3 组</strong><span class="detail-reps">8 次</span></div>
+              <div class="detail-meta"><span>时长 02:32</span><span>组间休息 01:16</span></div>
+              <div class="detail-meta"><span>结束 09:45</span></div>
+            </div>
+            <div class="detail-set">
+              <div class="detail-top"><strong>第 4 组</strong><span class="detail-reps">8 次</span></div>
+              <div class="detail-meta"><span>时长 02:28</span><span>组间休息 01:09</span></div>
+              <div class="detail-meta"><span>结束 09:49</span></div>
+            </div>
           </div>
         </div>
 
@@ -645,7 +704,6 @@
     const ids = ["home", "ready", "running", "rest", "summary", "history", "detail", "standards"];
     const chips = [...document.querySelectorAll(".chip[data-screen]")];
     const familyGrid = document.getElementById("familyGrid");
-    const stepPips = document.getElementById("stepPips");
     const stepNeighbors = document.getElementById("stepNeighbors");
     const restList = document.getElementById("restList");
 
@@ -670,19 +728,6 @@
 
     function renderStepDial() {
       const steps = fam().steps;
-      stepPips.innerHTML = "";
-      steps.forEach((_, index) => {
-        const level = index + 1;
-        const pip = document.createElement("div");
-        pip.className = "step-pip" + (level === state.step ? " active" : "");
-        pip.textContent = level;
-        pip.onclick = () => {
-          state.step = level;
-          render();
-        };
-        stepPips.appendChild(pip);
-      });
-
       const slots = [
         { label: "上一式", level: Math.max(1, state.step - 1) },
         { label: "当前式", level: state.step },
@@ -728,6 +773,7 @@
       text("currentStepNo", state.step);
       text("currentStepName", name);
       text("stepHead", `第${state.step}式`);
+      text("stepProgress", `${state.step} / ${fam().steps.length}`);
       text("readyTitle", title);
       text("readyStep", name);
       text("runTitle", title);

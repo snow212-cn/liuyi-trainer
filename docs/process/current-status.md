@@ -11,10 +11,17 @@
 3. 采用远程构建作为默认交付路线，本机尽量不要求安装 Android 开发依赖
 4. 在每轮只改少量关键页面的前提下，持续修正 UI
 
+当前 `prototype/ui-redesign.html` 已得到用户确认，属于本轮 Android UI 改造的唯一基准。
+
 这轮已经开始直接修改 Android 真代码，不再只停留在静态稿。本地构建尝试只是一次环境探测，不是对用户路线的改要求。
 
 ## 2. 本轮新增成果
 
+- 已按确认后的 HTML 稿开始重写 Android 前端：
+  - 新增统一 UI 壳层：`app/src/main/java/com/liuyi/trainer/ui/UiChrome.kt`
+  - 已重写首页：`app/src/main/java/com/liuyi/trainer/ui/HomeScreen.kt`
+  - 已重写训练流与历史页 UI：`app/src/main/java/com/liuyi/trainer/ui/TrainingFlowScreens.kt`
+  - 已重写主题色与字阶：`app/src/main/java/com/liuyi/trainer/ui/theme/`
 - 已继续修改 Android 训练页与历史页：
   - 训练执行页补回“已训练”总时长主指标
   - 历史列表分组预览改为更直接的次数串
@@ -80,7 +87,7 @@
 
 ## 7. 官方下一步
 
-1. 继续把最小可用版代码往前推
-2. 准备并检查 GitHub Actions 远程构建链路
-3. 远程产出 APK 后，让用户先安装这版最小可用成品使用
-4. 再按反馈继续重构首页、训练执行页与动作标准页
+1. 以 `prototype/ui-redesign.html` 为唯一 UI 基准修改 Android 正式页面
+2. 优先重构首页、训练执行页、历史列表页、历史详情页
+3. 准备并检查 GitHub Actions 远程构建链路
+4. 远程产出 APK 后，让用户先安装这版最小可用成品使用

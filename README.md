@@ -72,3 +72,23 @@
 - `prototype/index.html`
 - `docs/process/start-here.md`
 - `docs/learning/project-foundations-textbook.md`
+
+## APK 签名与升级
+
+远程工作流现在支持两种产物：
+
+- 配置固定 keystore 后，CI 产出稳定签名的 `release` APK，可覆盖安装同包名应用。新建一把长期保存的发布 keystore 以后所有正式 APK 都用它签名，不能再丢。可以生成：
+    ```powershell
+    keytool -genkeypair -v -keystore release-keystore.jks -alias
+    ```
+
+- 未配置 keystore 时，CI 只产出 `debug` APK，并使用独立包名 `com.liuyi.trainer.debug`，避免与正式安装包签名冲突。
+
+要让 GitHub Actions 一直产出可覆盖安装的 APK，需要在仓库 `Secrets and variables > Actions` 中配置 secret 和对应的值：
+
+- `ANDROID_KEYSTORE_BASE64`: `release-keystore.base64.txt` 里的整串内容
+- `ANDROID_KEYSTORE_PASSWORD`: 生成 keystore 时输入的 store password
+- `ANDROID_KEY_ALIAS`: 创建 keystore 时用的 alias
+- `ANDROID_KEY_PASSWORD`: 该 alias 对应的 key password
+
+其中关键的是：后续用于发布的 keystore 必须和手机里已安装那一版 APK 的签名私钥相同。若当前安装包的私钥已经丢失，Android 不允许无损覆盖安装，只能先备份应用数据，再卸载重装。

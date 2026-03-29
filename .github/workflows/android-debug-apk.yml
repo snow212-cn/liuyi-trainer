@@ -1,4 +1,4 @@
-name: Android Debug APK
+name: Android APK
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ permissions:
   contents: write
 
 jobs:
-  build-debug-apk:
+  build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -72,30 +72,61 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --build-cache --configuration-cache --stacktrace
+      - name: Select build variant
+        id: build_variant
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && \
+             [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && \
+             [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && \
+             [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "${GITHUB_WORKSPACE}/ci-signing.jks"
+            echo "gradle_task=:app:assembleRelease" >> "${GITHUB_OUTPUT}"
+            echo "artifact_name=liuyi-trainer-release-apk" >> "${GITHUB_OUTPUT}"
+            echo "apk_glob=app/build/outputs/apk/release/*.apk" >> "${GITHUB_OUTPUT}"
+            echo "release_tag=stable-latest" >> "${GITHUB_OUTPUT}"
+            echo "release_name=Liuyi Trainer Stable APK" >> "${GITHUB_OUTPUT}"
+            echo "release_body=自动更新的稳定签名 APK 下载页。" >> "${GITHUB_OUTPUT}"
+          else
+            echo "gradle_task=:app:assembleDebug" >> "${GITHUB_OUTPUT}"
+            echo "artifact_name=liuyi-trainer-debug-apk" >> "${GITHUB_OUTPUT}"
+            echo "apk_glob=app/build/outputs/apk/debug/*.apk" >> "${GITHUB_OUTPUT}"
+            echo "release_tag=debug-latest" >> "${GITHUB_OUTPUT}"
+            echo "release_name=Liuyi Trainer Debug APK" >> "${GITHUB_OUTPUT}"
+            echo "release_body=自动更新的调试版 APK 下载页。由于未配置固定签名，调试包会使用独立包名 com.liuyi.trainer.debug。" >> "${GITHUB_OUTPUT}"
+          fi
 
-      - name: Upload debug APK
+      - name: Build APK
+        env:
+          ANDROID_SIGNING_STORE_FILE: ${{ github.workspace }}/ci-signing.jks
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_NAME: 0.1.${{ github.run_number }}
+        run: ./gradlew ${{ steps.build_variant.outputs.gradle_task }} --build-cache --configuration-cache --stacktrace
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: liuyi-trainer-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: ${{ steps.build_variant.outputs.artifact_name }}
+          path: ${{ steps.build_variant.outputs.apk_glob }}
           if-no-files-found: error
 
-      - name: Publish debug APK to Releases
+      - name: Publish APK to Releases
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: debug-latest
-          name: Liuyi Trainer Debug APK
+          tag_name: ${{ steps.build_variant.outputs.release_tag }}
+          name: ${{ steps.build_variant.outputs.release_name }}
           body: |
-            自动更新的调试版 APK 下载页。
+            ${{ steps.build_variant.outputs.release_body }}
 
             仓库为公开状态时，可下载此处的 APK，不需要登录 GitHub。
           prerelease: true
           make_latest: false
           overwrite_files: true
-          files: app/build/outputs/apk/debug/*.apk
+          files: ${{ steps.build_variant.outputs.apk_glob }}
 
       - name: Upload build reports
         if: failure()

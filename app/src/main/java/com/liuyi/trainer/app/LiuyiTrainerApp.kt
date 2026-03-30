@@ -15,12 +15,14 @@ import com.liuyi.trainer.ui.TrainingPreparationScreen
 import com.liuyi.trainer.ui.TrainingReadyScreen
 import com.liuyi.trainer.ui.TrainingRestScreen
 import com.liuyi.trainer.ui.TrainingRunningScreen
+import com.liuyi.trainer.ui.TrainingSettingsScreen
 import com.liuyi.trainer.ui.TrainingSummaryScreen
 import com.liuyi.trainer.ui.buildHistoryDetailPreview
 import com.liuyi.trainer.ui.buildHistoryPreview
 import com.liuyi.trainer.ui.buildPreparingPreview
 import com.liuyi.trainer.ui.buildRestPreview
 import com.liuyi.trainer.ui.buildRunningPreview
+import com.liuyi.trainer.ui.buildSettingsPreview
 import com.liuyi.trainer.ui.buildStandardsPreview
 import com.liuyi.trainer.ui.buildSummaryPreview
 import com.liuyi.trainer.ui.buildTrainingEntryPreview
@@ -33,6 +35,7 @@ private object Routes {
     const val History = "history"
     const val HistoryDetail = "history_detail"
     const val Standards = "standards"
+    const val Settings = "settings"
 }
 
 @Composable
@@ -52,19 +55,15 @@ fun LiuyiTrainerApp(
                 families = ExerciseCatalog.families,
                 selectedFamilyId = appViewModel.selectedFamilyId,
                 selectedStepLevel = appViewModel.selectedStepLevel,
-                restPresetSeconds = appViewModel.restPresetSeconds,
-                restPresetOptions = appViewModel.restPresetOptions,
-                previewCadenceLabel = ExerciseCatalog.previewCadence.label,
-                previewCadenceSeconds = ExerciseCatalog.previewCadence.cycleDurationMs / 1000,
                 onSelectFamily = appViewModel::selectFamily,
                 onSelectStep = appViewModel::selectStep,
-                onSelectRestPreset = appViewModel::selectRestPreset,
                 onStartTraining = {
                     navController.navigate(Routes.Training)
                 },
                 hasActiveSession = appViewModel.sessionState !is TrainingSessionState.Idle &&
                     appViewModel.sessionState !is TrainingSessionState.Completed,
                 activeSessionLabel = activeSessionHomeLabel(appViewModel.sessionState),
+                settingsSummary = homeSettingsSummary(appViewModel),
                 onOpenActiveSession = {
                     navController.navigate(activeRoute)
                 },
@@ -76,8 +75,8 @@ fun LiuyiTrainerApp(
                         }
                     }
                 },
-                onOpenSummary = {
-                    navController.navigate(Routes.Summary)
+                onOpenSettings = {
+                    navController.navigate(Routes.Settings)
                 },
                 onOpenHistory = {
                     navController.navigate(Routes.History)
@@ -108,9 +107,9 @@ fun LiuyiTrainerApp(
                         context = activeContext,
                         state = currentState,
                         nowUtc = appViewModel.nowUtc,
+                        voiceGuideMode = appViewModel.voiceGuideMode,
+                        speechEnabled = appViewModel.speechEnabled,
                     ),
-                    speechEnabled = appViewModel.speechEnabled,
-                    onToggleSpeech = appViewModel::updateSpeechEnabled,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -128,11 +127,9 @@ fun LiuyiTrainerApp(
                     preview = buildTrainingEntryPreview(
                         context = appViewModel.selectedContext,
                         restPresetSeconds = appViewModel.restPresetSeconds,
-                        cadenceLabel = ExerciseCatalog.previewCadence.label,
+                        cadenceLabel = readySettingsSummary(appViewModel),
                         cadenceSeconds = ExerciseCatalog.previewCadence.cycleDurationMs / 1000,
                     ),
-                    speechEnabled = appViewModel.speechEnabled,
-                    onToggleSpeech = appViewModel::updateSpeechEnabled,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -161,6 +158,8 @@ fun LiuyiTrainerApp(
                         context = activeContext,
                         state = currentState,
                         nowUtc = appViewModel.nowUtc,
+                        restCountdownVoiceEnabled = appViewModel.restCountdownVoiceEnabled,
+                        speechEnabled = appViewModel.speechEnabled,
                     ),
                     speechEnabled = appViewModel.speechEnabled,
                     onBack = {
@@ -202,6 +201,31 @@ fun LiuyiTrainerApp(
                 },
                 onUpdateRep = appViewModel::updateSummaryRep,
                 onSave = appViewModel::saveCompletedTraining,
+            )
+        }
+
+        composable(Routes.Settings) {
+            TrainingSettingsScreen(
+                preview = buildSettingsPreview(
+                    speechEnabled = appViewModel.speechEnabled,
+                    voiceGuideMode = appViewModel.voiceGuideMode,
+                    restPresetSeconds = appViewModel.restPresetSeconds,
+                    restPresetOptions = appViewModel.restPresetOptions,
+                    preparationSeconds = appViewModel.preparationSeconds,
+                    preparationOptions = appViewModel.preparationOptions,
+                    restCountdownVoiceEnabled = appViewModel.restCountdownVoiceEnabled,
+                ),
+                onBack = {
+                    navController.popBackStack()
+                },
+                onBackHome = {
+                    navController.popBackStack(Routes.Home, false)
+                },
+                onUpdateSpeechEnabled = appViewModel::updateSpeechEnabled,
+                onUpdateVoiceGuideMode = appViewModel::updateVoiceGuideMode,
+                onUpdateRestPreset = appViewModel::selectRestPreset,
+                onUpdatePreparationSeconds = appViewModel::updatePreparationSeconds,
+                onUpdateRestCountdownVoiceEnabled = appViewModel::updateRestCountdownVoiceEnabled,
             )
         }
 
@@ -279,4 +303,16 @@ private fun activeSessionHomeLabel(state: TrainingSessionState): String? = when 
     is TrainingSessionState.RestRunning -> "当前在组间休息"
     is TrainingSessionState.RestOvertime -> "当前休息已超时"
     else -> null
+}
+
+private fun homeSettingsSummary(appViewModel: LiuyiTrainerViewModel): String =
+    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"} · ${appViewModel.restPresetSeconds}秒休息"
+
+private fun readySettingsSummary(appViewModel: LiuyiTrainerViewModel): String =
+    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"} · ${appViewModel.restPresetSeconds}秒休息 · ${appViewModel.preparationSeconds}秒准备"
+
+private fun com.liuyi.trainer.model.VoiceGuideMode.labelZh(): String = when (this) {
+    com.liuyi.trainer.model.VoiceGuideMode.Command -> "起落停"
+    com.liuyi.trainer.model.VoiceGuideMode.Counting -> "按秒报数"
+    com.liuyi.trainer.model.VoiceGuideMode.Breathing -> "呼吸提示"
 }

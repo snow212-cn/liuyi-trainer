@@ -47,12 +47,12 @@ data class MovementFamily(
 object ExerciseCatalog {
     val previewCadence = CadenceProfile(
         id = "preview_default",
-        label = "2-1-2 原型节奏",
+        label = "2-1-2 原书节奏",
         eccentricSeconds = 2,
         bottomPauseSeconds = 1,
         concentricSeconds = 2,
         topPauseSeconds = 0,
-        source = "当前按用户确认的 2-1-2 节奏原型演示",
+        source = "按原书确认的 2-1-2 节奏演示",
     )
 
     private fun steps(vararg labels: String): List<MovementStep> = labels.mapIndexed { index, label ->

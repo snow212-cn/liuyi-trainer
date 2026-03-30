@@ -29,19 +29,15 @@ fun HomeScreen(
     families: List<MovementFamily>,
     selectedFamilyId: String,
     selectedStepLevel: Int,
-    restPresetSeconds: Int,
-    restPresetOptions: List<Int>,
-    previewCadenceLabel: String,
-    previewCadenceSeconds: Long,
     onSelectFamily: (String) -> Unit,
     onSelectStep: (Int) -> Unit,
-    onSelectRestPreset: (Int) -> Unit,
     onStartTraining: () -> Unit,
     hasActiveSession: Boolean,
     activeSessionLabel: String?,
+    settingsSummary: String,
     onOpenActiveSession: () -> Unit,
     onFinishActiveSession: () -> Unit,
-    onOpenSummary: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenStandards: () -> Unit,
 ) {
@@ -53,10 +49,10 @@ fun HomeScreen(
 
     PrisonSurface {
         PrisonScrollColumn {
-            HomeTitleBar()
+            HomeTitleBar(onOpenSettings = onOpenSettings)
 
             SteelPanel {
-                SectionKicker(text = "CURRENT DRILL")
+                SectionKicker(text = "当前训练")
                 Text(
                     text = "${selectedFamily.titleZh} · 第${selectedStep.level}式",
                     style = MaterialTheme.typography.displayMedium,
@@ -68,7 +64,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     MutedBody(text = selectedStep.label)
-                    MutedBody(text = "休息 ${restPresetSeconds} 秒")
+                    MutedBody(text = settingsSummary)
                 }
                 if (hasActiveSession && activeSessionLabel != null) {
                     ActiveSessionStrip(
@@ -81,23 +77,14 @@ fun HomeScreen(
                     hasActiveSession = hasActiveSession,
                     onStartTraining = onStartTraining,
                     onOpenActiveSession = onOpenActiveSession,
+                    onOpenSettings = onOpenSettings,
                     onOpenStandards = onOpenStandards,
                     onOpenHistory = onOpenHistory,
-                    onOpenSummary = onOpenSummary,
                 )
-                Row(
+                HomeMetaTag(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    HomeMetaTag(
-                        modifier = Modifier.weight(1f),
-                        label = previewCadenceLabel,
-                    )
-                    HomeMetaTag(
-                        modifier = Modifier.weight(1f),
-                        label = "${previewCadenceSeconds} 秒/次",
-                    )
-                }
+                    label = "原书节奏 2-1-2",
+                )
             }
 
             SteelPanel(soft = true) {
@@ -126,23 +113,14 @@ fun HomeScreen(
                 )
             }
 
-            SteelPanel(soft = true) {
-                SteelSectionHeader(
-                    title = "组间休息",
-                    subtitle = "刻度预设",
-                )
-                RestNotchRow(
-                    restPresetOptions = restPresetOptions,
-                    selectedRestPresetSeconds = restPresetSeconds,
-                    onSelectRestPreset = onSelectRestPreset,
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun HomeTitleBar() {
+private fun HomeTitleBar(
+    onOpenSettings: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -155,6 +133,7 @@ private fun HomeTitleBar() {
         )
         Box(
             modifier = Modifier
+                .clickable(onClick = onOpenSettings)
                 .clip(RoundedFull)
                 .border(
                     width = 1.dp,
@@ -164,7 +143,7 @@ private fun HomeTitleBar() {
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "首页",
+                text = "训练设置",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -177,9 +156,9 @@ private fun HomeActionGrid(
     hasActiveSession: Boolean,
     onStartTraining: () -> Unit,
     onOpenActiveSession: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenStandards: () -> Unit,
     onOpenHistory: () -> Unit,
-    onOpenSummary: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -207,8 +186,8 @@ private fun HomeActionGrid(
                 modifier = Modifier.weight(1f),
             )
             SteelSecondaryButton(
-                text = "本次总结",
-                onClick = onOpenSummary,
+                text = "训练设置",
+                onClick = onOpenSettings,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -228,6 +207,7 @@ private fun ActiveSessionStrip(
         Box(
             modifier = Modifier
                 .weight(1f)
+                .clickable(onClick = onOpenActiveSession)
                 .clip(RoundedInner)
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
                 .padding(horizontal = 12.dp, vertical = 12.dp),

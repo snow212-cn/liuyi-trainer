@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.liuyi.trainer.data.TrainingSessionWithSets
 import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.TrainingSessionState
+import com.liuyi.trainer.model.VoiceGuideMode
 import com.liuyi.trainer.model.completeTrainingSession
 import com.liuyi.trainer.model.finishCurrentSet
 import com.liuyi.trainer.model.prepareNextSet
@@ -56,6 +57,15 @@ class LiuyiTrainerViewModel(
     var speechEnabled by mutableStateOf(true)
         private set
 
+    var voiceGuideMode by mutableStateOf(VoiceGuideMode.Command)
+        private set
+
+    var preparationSeconds by mutableIntStateOf(3)
+        private set
+
+    var restCountdownVoiceEnabled by mutableStateOf(true)
+        private set
+
     var summaryRepDrafts by mutableStateOf<List<String>>(emptyList())
         private set
 
@@ -72,6 +82,7 @@ class LiuyiTrainerViewModel(
         private set
 
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
+    val preparationOptions: List<Int> = listOf(3, 5, 8)
 
     init {
         viewModelScope.launch {
@@ -123,6 +134,18 @@ class LiuyiTrainerViewModel(
         speechEnabled = enabled
     }
 
+    fun updateVoiceGuideMode(mode: VoiceGuideMode) {
+        voiceGuideMode = mode
+    }
+
+    fun updatePreparationSeconds(seconds: Int) {
+        preparationSeconds = seconds
+    }
+
+    fun updateRestCountdownVoiceEnabled(enabled: Boolean) {
+        restCountdownVoiceEnabled = enabled
+    }
+
     fun selectHistorySession(sessionId: Long) {
         selectedHistorySessionId = sessionId
         historyEditsDirty = false
@@ -163,6 +186,7 @@ class LiuyiTrainerViewModel(
             cadenceProfile = selectedContext.family.previewCadence,
             restPreset = defaultRestPreset().copy(defaultRestSeconds = restPresetSeconds),
             prepareStartedAtUtc = preparedAt,
+            preparationSeconds = preparationSeconds,
         )
         ensureTicker()
     }
@@ -195,6 +219,7 @@ class LiuyiTrainerViewModel(
         sessionState = prepareNextSet(
             state = currentState,
             prepareStartedAtUtc = preparedAt,
+            preparationSeconds = preparationSeconds,
         )
         ensureTicker()
     }

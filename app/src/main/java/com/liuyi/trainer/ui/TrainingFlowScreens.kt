@@ -56,6 +56,7 @@ import com.liuyi.trainer.model.MovementFamily
 import com.liuyi.trainer.model.MovementStep
 import com.liuyi.trainer.model.RestPreset
 import com.liuyi.trainer.model.TrainingSessionState
+import com.liuyi.trainer.model.VoiceGuideMode
 import com.liuyi.trainer.model.WorkoutSetResult
 import com.liuyi.trainer.model.snapshotRestState
 import com.liuyi.trainer.model.trackLiveCadence
@@ -96,6 +97,9 @@ data class RunningPreview(
     val currentPhaseLabel: String,
     val phaseSecondLabel: String,
     val phaseCueText: String,
+    val activeBeatIndex: Int,
+    val speechCueKey: String?,
+    val speechCueText: String?,
     val currentRepCount: Int,
     val currentSetIndex: Int,
     val completedSetCount: Int,
@@ -141,6 +145,17 @@ data class StandardsPreview(
     val sections: List<Pair<String, String>>,
 )
 
+data class TrainingSettingsPreview(
+    val speechEnabled: Boolean,
+    val voiceGuideMode: VoiceGuideMode,
+    val voiceModeLabel: String,
+    val restPresetSeconds: Int,
+    val restPresetOptions: List<Int>,
+    val preparationSeconds: Int,
+    val preparationOptions: List<Int>,
+    val restCountdownVoiceEnabled: Boolean,
+)
+
 data class HistoryRowPreview(
     val sessionId: Long,
     val title: String,
@@ -176,8 +191,6 @@ data class HistoryDetailPreview(
 @Composable
 fun TrainingReadyScreen(
     preview: TrainingEntryPreview,
-    speechEnabled: Boolean,
-    onToggleSpeech: (Boolean) -> Unit,
     onBack: () -> Unit,
     onStartSet: () -> Unit,
     onOpenStandards: () -> Unit,
@@ -191,7 +204,7 @@ fun TrainingReadyScreen(
             )
 
             SteelPanel {
-                SectionKicker(text = "READY CHECK")
+                SectionKicker(text = "准备")
                 Text(
                     text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
                     style = MaterialTheme.typography.displayMedium,
@@ -208,16 +221,11 @@ fun TrainingReadyScreen(
 
             SteelPanel(soft = true) {
                 SteelSectionHeader(
-                    title = "本次设置",
+                    title = "本次配置",
                     subtitle = "手动开始",
                 )
                 ReadySettingRow(label = "完整循环", value = "${preview.cadenceSeconds} 秒")
-                ReadySettingRow(label = "提示词", value = "落 / 停 / 起")
-                ReadySettingRow(label = "语音提示", value = if (speechEnabled) "开启" else "关闭")
-                SteelSecondaryButton(
-                    text = if (speechEnabled) "关闭语音提示" else "开启语音提示",
-                    onClick = { onToggleSpeech(!speechEnabled) },
-                )
+                ReadySettingRow(label = "训练设置", value = preview.cadenceLabel)
                 MutedBody(text = "进入训练页后不会自动开始，必须由你手动点“开始本组”。")
             }
 
@@ -268,7 +276,7 @@ fun TrainingPreparationScreen(
             )
 
             SteelPanel {
-                SectionKicker(text = "SET PREP")
+                SectionKicker(text = "就位")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -304,7 +312,6 @@ fun TrainingPreparationScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            SectionKicker(text = "就位")
                             Text(
                                 text = preview.countdownLabel,
                                 style = MaterialTheme.typography.displayLarge,
@@ -326,16 +333,14 @@ fun TrainingPreparationScreen(
 @Composable
 fun TrainingRunningScreen(
     preview: RunningPreview,
-    speechEnabled: Boolean,
-    onToggleSpeech: (Boolean) -> Unit,
     onBack: () -> Unit,
     onFinishSet: () -> Unit,
     onCompleteTraining: () -> Unit,
 ) {
     SpeechCueEffect(
-        enabled = speechEnabled,
-        cueKey = preview.phaseCueText,
-        cueText = preview.phaseCueText,
+        enabled = preview.speechCueText != null,
+        cueKey = preview.speechCueKey,
+        cueText = preview.speechCueText,
     )
 
     PrisonSurface {
@@ -357,7 +362,7 @@ fun TrainingRunningScreen(
                 phaseLabel = preview.currentPhaseLabel,
                 phaseSecondLabel = preview.phaseSecondLabel,
                 cueText = preview.phaseCueText,
-                speechEnabled = speechEnabled,
+                activeBeatIndex = preview.activeBeatIndex,
             )
 
             Row(
@@ -392,15 +397,11 @@ fun TrainingRunningScreen(
                     modifier = Modifier.weight(1f),
                 )
                 SteelSecondaryButton(
-                    text = if (speechEnabled) "语音已开" else "语音已关",
-                    onClick = { onToggleSpeech(!speechEnabled) },
+                    text = "结束训练",
+                    onClick = onCompleteTraining,
                     modifier = Modifier.weight(1f),
                 )
             }
-            SteelSecondaryButton(
-                text = "结束训练",
-                onClick = onCompleteTraining,
-            )
         }
     }
 }
@@ -436,7 +437,7 @@ fun TrainingRestScreen(
             )
 
             SteelPanel {
-                SectionKicker(text = "REST WINDOW")
+                SectionKicker(text = "休息")
                 Text(
                     text = preview.restHeadline,
                     style = MaterialTheme.typography.headlineSmall,
@@ -553,6 +554,102 @@ fun TrainingSummaryScreen(
 }
 
 @Composable
+fun TrainingSettingsScreen(
+    preview: TrainingSettingsPreview,
+    onBack: () -> Unit,
+    onBackHome: () -> Unit,
+    onUpdateSpeechEnabled: (Boolean) -> Unit,
+    onUpdateVoiceGuideMode: (VoiceGuideMode) -> Unit,
+    onUpdateRestPreset: (Int) -> Unit,
+    onUpdatePreparationSeconds: (Int) -> Unit,
+    onUpdateRestCountdownVoiceEnabled: (Boolean) -> Unit,
+) {
+    PrisonSurface {
+        PrisonScrollColumn {
+            ScreenTopBar(
+                title = "训练设置",
+                actionLabel = "返回上一页",
+                onAction = onBack,
+            )
+
+            SteelPanel {
+                SectionKicker(text = "语音与节奏")
+                ReadySettingRow(label = "原书节奏", value = "2-1-2")
+                ReadySettingRow(label = "当前语音", value = preview.voiceModeLabel)
+                ReadySettingRow(label = "组间休息", value = "${preview.restPresetSeconds} 秒")
+                ReadySettingRow(label = "起组准备", value = "${preview.preparationSeconds} 秒")
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "语音总开关",
+                    subtitle = if (preview.speechEnabled) "已开启" else "已关闭",
+                )
+                BooleanOptionRow(
+                    enabled = preview.speechEnabled,
+                    enabledText = "语音开启",
+                    disabledText = "语音关闭",
+                    onToggle = onUpdateSpeechEnabled,
+                )
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "训练语音模式",
+                    subtitle = preview.voiceModeLabel,
+                )
+                VoiceModeSelector(
+                    selectedMode = preview.voiceGuideMode,
+                    onSelect = onUpdateVoiceGuideMode,
+                )
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "起组准备",
+                    subtitle = "${preview.preparationSeconds} 秒",
+                )
+                SecondsSelector(
+                    options = preview.preparationOptions,
+                    selectedSeconds = preview.preparationSeconds,
+                    onSelect = onUpdatePreparationSeconds,
+                )
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "组间休息",
+                    subtitle = "${preview.restPresetSeconds} 秒",
+                )
+                SecondsSelector(
+                    options = preview.restPresetOptions,
+                    selectedSeconds = preview.restPresetSeconds,
+                    onSelect = onUpdateRestPreset,
+                )
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "休息倒数播报",
+                    subtitle = if (preview.restCountdownVoiceEnabled) "最后 3 秒播报" else "关闭",
+                )
+                BooleanOptionRow(
+                    enabled = preview.restCountdownVoiceEnabled,
+                    enabledText = "最后 3 秒播报",
+                    disabledText = "不播报",
+                    onToggle = onUpdateRestCountdownVoiceEnabled,
+                )
+            }
+
+            SteelSecondaryButton(
+                text = "回到首页",
+                onClick = onBackHome,
+            )
+        }
+    }
+}
+
+@Composable
 fun StandardsScreen(
     preview: StandardsPreview,
     onBack: () -> Unit,
@@ -568,7 +665,7 @@ fun StandardsScreen(
             )
 
             SteelPanel {
-                SectionKicker(text = "原书来源")
+                SectionKicker(text = "动作标准")
                 Text(
                     text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
                     style = MaterialTheme.typography.displayMedium,
@@ -595,7 +692,7 @@ fun StandardsScreen(
 
             SteelPanel(soft = true) {
                 Text(
-                    text = "示意图位",
+                    text = "动作示意图",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -794,21 +891,128 @@ private fun ReadySettingRow(
 }
 
 @Composable
+private fun BooleanOptionRow(
+    enabled: Boolean,
+    enabledText: String,
+    disabledText: String,
+    onToggle: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TogglePill(
+            modifier = Modifier.weight(1f),
+            selected = enabled,
+            text = enabledText,
+            onClick = { onToggle(true) },
+        )
+        TogglePill(
+            modifier = Modifier.weight(1f),
+            selected = !enabled,
+            text = disabledText,
+            onClick = { onToggle(false) },
+        )
+    }
+}
+
+@Composable
+private fun VoiceModeSelector(
+    selectedMode: VoiceGuideMode,
+    onSelect: (VoiceGuideMode) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(
+            VoiceGuideMode.Command to "起 / 落 / 停",
+            VoiceGuideMode.Counting to "按秒报数",
+            VoiceGuideMode.Breathing to "吸气 / 稳住 / 呼气",
+        ).forEach { (mode, label) ->
+            TogglePill(
+                modifier = Modifier.fillMaxWidth(),
+                selected = selectedMode == mode,
+                text = label,
+                onClick = { onSelect(mode) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SecondsSelector(
+    options: List<Int>,
+    selectedSeconds: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.chunked(3).forEach { rowOptions ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowOptions.forEach { seconds ->
+                    TogglePill(
+                        modifier = Modifier.weight(1f),
+                        selected = selectedSeconds == seconds,
+                        text = "${seconds}秒",
+                        onClick = { onSelect(seconds) },
+                    )
+                }
+                repeat(3 - rowOptions.size) {
+                    Box(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TogglePill(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .border(
+                width = 1.dp,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+                },
+                shape = RoundedCornerShape(18.dp),
+            )
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.24f)
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
 private fun CadenceCorePanel(
     phaseLabel: String,
     phaseSecondLabel: String,
     cueText: String,
-    speechEnabled: Boolean,
+    activeBeatIndex: Int,
 ) {
     SteelPanel {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SectionKicker(text = "CADENCE CORE")
-            MutedBody(text = if (speechEnabled) "语音 开启" else "语音 关闭")
-        }
+        SectionKicker(text = "节奏")
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
@@ -861,21 +1065,19 @@ private fun CadenceCorePanel(
                 }
             }
         }
-        BreathBars(activeCue = cueText)
+        BreathBars(activeBeatIndex = activeBeatIndex)
     }
 }
 
 @Composable
-private fun BreathBars(activeCue: String) {
-    val cues = listOf("落", "停", "起")
-    val activeIndex = cues.indexOf(activeCue).coerceAtLeast(0)
+private fun BreathBars(activeBeatIndex: Int) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.Bottom,
     ) {
         listOf(10.dp, 18.dp, 28.dp, 18.dp, 10.dp).forEachIndexed { index, height ->
-            val highlighted = index == activeIndex + 1
+            val highlighted = index == activeBeatIndex
             Box(
                 modifier = Modifier
                     .width(8.dp)
@@ -998,7 +1200,7 @@ private fun StandardsIllustrationFrame() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "未来接入 EPUB 摘录图或用户提供的示意图",
+            text = "后续将在这里显示对应式的示意图",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1276,6 +1478,25 @@ fun buildTrainingEntryPreview(
     restPresetLabel = "${restPresetSeconds} 秒",
 )
 
+fun buildSettingsPreview(
+    speechEnabled: Boolean,
+    voiceGuideMode: VoiceGuideMode,
+    restPresetSeconds: Int,
+    restPresetOptions: List<Int>,
+    preparationSeconds: Int,
+    preparationOptions: List<Int>,
+    restCountdownVoiceEnabled: Boolean,
+): TrainingSettingsPreview = TrainingSettingsPreview(
+    speechEnabled = speechEnabled,
+    voiceGuideMode = voiceGuideMode,
+    voiceModeLabel = if (speechEnabled) voiceGuideMode.labelZh() else "语音关闭",
+    restPresetSeconds = restPresetSeconds,
+    restPresetOptions = restPresetOptions,
+    preparationSeconds = preparationSeconds,
+    preparationOptions = preparationOptions,
+    restCountdownVoiceEnabled = restCountdownVoiceEnabled,
+)
+
 fun buildPreparingPreview(
     context: ExerciseContext,
     state: TrainingSessionState.PreparingSet,
@@ -1299,16 +1520,32 @@ fun buildRunningPreview(
     context: ExerciseContext,
     state: TrainingSessionState.SetRunning,
     nowUtc: Instant,
+    voiceGuideMode: VoiceGuideMode,
+    speechEnabled: Boolean,
 ): RunningPreview {
     val progress = trackLiveCadence(
         cadenceProfile = state.cadenceProfile,
         elapsedMs = Duration.between(state.setStartedAtUtc, nowUtc).toMillis(),
     )
+    val phaseSecond = ((progress.phaseElapsedMs / 1000L).toInt() + 1).coerceAtLeast(1)
+    val speechCue = buildTrainingSpeechCue(
+        phase = progress.phase,
+        phaseSecond = phaseSecond,
+        repIndex = progress.completedRepCount,
+        voiceGuideMode = voiceGuideMode,
+        speechEnabled = speechEnabled,
+    )
     return RunningPreview(
         context = context,
         currentPhaseLabel = progress.phase.displayLabelZh(),
         phaseSecondLabel = String.format(Locale.getDefault(), "%.1f", progress.phaseElapsedMs / 1000f),
-        phaseCueText = progress.phase.voiceCue(),
+        phaseCueText = progress.phase.displayCueText(
+            voiceGuideMode = voiceGuideMode,
+            phaseSecond = phaseSecond,
+        ),
+        activeBeatIndex = progress.phase.activeBeatIndex(),
+        speechCueKey = speechCue?.first,
+        speechCueText = speechCue?.second,
         currentRepCount = progress.completedRepCount,
         currentSetIndex = state.completedSets.size + 1,
         completedSetCount = state.completedSets.size,
@@ -1321,6 +1558,8 @@ fun buildRestPreview(
     context: ExerciseContext,
     state: TrainingSessionState,
     nowUtc: Instant,
+    restCountdownVoiceEnabled: Boolean,
+    speechEnabled: Boolean,
 ): RestPreview {
     val restState = when (state) {
         is TrainingSessionState.RestRunning -> state
@@ -1347,7 +1586,7 @@ fun buildRestPreview(
         restPreset = restPreset,
         nowUtc = nowUtc,
     )
-    val speechCue = restSpeechCue(snapshot)
+    val speechCue = if (speechEnabled && restCountdownVoiceEnabled) restSpeechCue(snapshot) else null
 
     return RestPreview(
         context = context,
@@ -1430,14 +1669,14 @@ fun buildSummaryPreview(
 
 fun buildStandardsPreview(context: ExerciseContext): StandardsPreview {
     val statusLabel = when (context.step.contentStatus) {
-        ContentStatus.Placeholder -> "占位内容"
-        ContentStatus.Draft -> "草稿内容"
-        ContentStatus.Ready -> "已就绪内容"
+        ContentStatus.Placeholder -> "待补充"
+        ContentStatus.Draft -> "整理中"
+        ContentStatus.Ready -> "已整理"
     }
     val hint = when (context.step.contentStatus) {
-        ContentStatus.Placeholder -> "当前先放结构和来源位置，后续根据你提供的原书内容做整理接入。"
-        ContentStatus.Draft -> "当前是重述草稿，仍需校对。"
-        ContentStatus.Ready -> "当前内容已就绪，可直接用于训练前阅读。"
+        ContentStatus.Placeholder -> "这一式的原书摘录和示意图还没有接入。"
+        ContentStatus.Draft -> "这一式内容已开始整理，但还需要继续补全。"
+        ContentStatus.Ready -> "这一式内容已经整理完成，可直接用于训练前复核。"
     }
 
     return StandardsPreview(
@@ -1446,8 +1685,8 @@ fun buildStandardsPreview(context: ExerciseContext): StandardsPreview {
         contentStatusLabel = statusLabel,
         statusHint = hint,
         sections = listOf(
-            "标准说明" to "这里将放该式来自原书的核心动作标准，不做整章阅读，只保留训练前真正需要快速复核的内容。",
-            "动作要点 / 常见错误" to "这里承接关键动作路径、呼吸、节奏配合，以及是否需要借助墙面、篮球等辅助信息。",
+            "标准说明" to "这里用于放入这一式来自原书的核心动作标准，只保留训练前真正需要快速复核的内容。",
+            "动作要点 / 常见错误" to "这里用于整理动作路径、呼吸、节奏配合，以及可能需要的辅助信息。",
         ),
     )
 }
@@ -1570,16 +1809,75 @@ private fun restSpeechCue(snapshot: com.liuyi.trainer.model.RestSnapshot): Pair<
     }
 }
 
+private fun buildTrainingSpeechCue(
+    phase: CadencePhase,
+    phaseSecond: Int,
+    repIndex: Int,
+    voiceGuideMode: VoiceGuideMode,
+    speechEnabled: Boolean,
+): Pair<String, String>? {
+    if (!speechEnabled) {
+        return null
+    }
+
+    return when (voiceGuideMode) {
+        VoiceGuideMode.Command -> {
+            "cmd-${repIndex}-${phase.name}" to phase.voiceCue()
+        }
+
+        VoiceGuideMode.Counting -> {
+            "count-${repIndex}-${phase.name}-$phaseSecond" to phase.countingCue(phaseSecond)
+        }
+
+        VoiceGuideMode.Breathing -> {
+            "breath-${repIndex}-${phase.name}" to phase.breathCue()
+        }
+    }
+}
+
+private fun VoiceGuideMode.labelZh(): String = when (this) {
+    VoiceGuideMode.Command -> "起落停"
+    VoiceGuideMode.Counting -> "按秒报数"
+    VoiceGuideMode.Breathing -> "呼吸提示"
+}
+
 private fun CadencePhase.displayLabelZh(): String = when (this) {
     CadencePhase.Lowering -> "下落"
     CadencePhase.BottomHold -> "停顿"
     CadencePhase.Rising -> "起身"
 }
 
+private fun CadencePhase.displayCueText(
+    voiceGuideMode: VoiceGuideMode,
+    phaseSecond: Int,
+): String = when (voiceGuideMode) {
+    VoiceGuideMode.Command -> voiceCue()
+    VoiceGuideMode.Counting -> countingCue(phaseSecond)
+    VoiceGuideMode.Breathing -> breathCue()
+}
+
+private fun CadencePhase.activeBeatIndex(): Int = when (this) {
+    CadencePhase.Lowering -> 1
+    CadencePhase.BottomHold -> 2
+    CadencePhase.Rising -> 3
+}
+
 private fun CadencePhase.voiceCue(): String = when (this) {
     CadencePhase.Lowering -> "落"
     CadencePhase.BottomHold -> "停"
     CadencePhase.Rising -> "起"
+}
+
+private fun CadencePhase.countingCue(phaseSecond: Int): String = when (this) {
+    CadencePhase.Lowering -> if (phaseSecond <= 1) "一" else "二"
+    CadencePhase.BottomHold -> "停"
+    CadencePhase.Rising -> if (phaseSecond <= 1) "一" else "二"
+}
+
+private fun CadencePhase.breathCue(): String = when (this) {
+    CadencePhase.Lowering -> "吸气"
+    CadencePhase.BottomHold -> "稳住"
+    CadencePhase.Rising -> "呼气"
 }
 
 fun defaultExerciseContext(): ExerciseContext {

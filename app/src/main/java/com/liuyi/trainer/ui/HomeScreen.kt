@@ -49,7 +49,7 @@ fun HomeScreen(
 
     PrisonSurface {
         PrisonScrollColumn {
-            HomeTitleBar(onOpenSettings = onOpenSettings)
+            HomeTitleBar()
 
             SteelPanel {
                 SectionKicker(text = "当前训练")
@@ -114,12 +114,10 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeTitleBar(
-    onOpenSettings: () -> Unit,
-) {
+private fun HomeTitleBar() {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -127,23 +125,6 @@ private fun HomeTitleBar(
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
         )
-        Box(
-            modifier = Modifier
-                .clickable(onClick = onOpenSettings)
-                .clip(RoundedFull)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    shape = RoundedFull,
-                )
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = "训练设置",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 

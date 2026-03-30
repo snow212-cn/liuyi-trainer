@@ -623,6 +623,7 @@ fun TrainingSettingsScreen(
                     selectedVoiceId = preview.selectedVoiceId,
                     onSelect = onUpdateSelectedVoice,
                 )
+                MutedBody(text = "这里只能显示当前语音引擎实际返回的语音条目；如果系统没有提供人名，就只能显示语音ID。")
             }
 
             SteelPanel(soft = true) {

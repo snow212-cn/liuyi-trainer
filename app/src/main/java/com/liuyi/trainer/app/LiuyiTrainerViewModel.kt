@@ -422,6 +422,7 @@ class LiuyiTrainerViewModel(
                             .thenBy { it.name },
                     )
                     .map { voice -> voice.toDeviceVoiceOption() }
+                    .let(::makeVoiceLabelsDistinct)
 
                 availableVoices = listOf(defaultVoiceOption()) + discoveredVoices
                 if (availableVoices.none { it.id == selectedVoiceId }) {
@@ -457,12 +458,27 @@ private fun Voice.toDeviceVoiceOption(): DeviceVoiceOption {
     val shortName = name
         .substringAfterLast('/')
         .substringAfterLast('#')
-        .substringAfterLast('.')
+        .ifBlank { name }
 
     return DeviceVoiceOption(
         id = name,
-        label = "$localeLabel·$shortName",
+        label = "$shortName · $localeLabel",
     )
+}
+
+private fun makeVoiceLabelsDistinct(options: List<DeviceVoiceOption>): List<DeviceVoiceOption> {
+    val duplicates = options
+        .groupingBy { it.label }
+        .eachCount()
+        .filterValues { it > 1 }
+
+    return options.map { option ->
+        if (option.label in duplicates) {
+            option.copy(label = "${option.label} · ${option.id}")
+        } else {
+            option
+        }
+    }
 }
 
 private fun resolveExerciseContext(

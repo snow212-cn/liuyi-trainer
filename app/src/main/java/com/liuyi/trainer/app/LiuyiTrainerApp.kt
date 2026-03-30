@@ -237,13 +237,20 @@ fun LiuyiTrainerApp(
 
         composable(Routes.History) {
             TrainingHistoryScreen(
-                preview = buildHistoryPreview(appViewModel.recentSessions),
+                preview = buildHistoryPreview(
+                    sessions = appViewModel.recentSessions,
+                    transferStatus = appViewModel.historyTransferStatus,
+                    latestExportLabel = appViewModel.latestHistoryExportLabel,
+                    latestExportUri = appViewModel.latestHistoryExportUri,
+                ),
                 onBack = {
                     navController.popBackStack()
                 },
                 onBackHome = {
                     navController.popBackStack(Routes.Home, false)
                 },
+                onExportToUri = appViewModel::exportHistoryBackup,
+                onImportFromUri = appViewModel::importHistoryBackup,
                 onOpenDetail = { sessionId ->
                     appViewModel.selectHistorySession(sessionId)
                     navController.navigate(Routes.HistoryDetail)

@@ -1,8 +1,10 @@
 package com.liuyi.trainer.app
 
 import android.app.Application
+import android.net.Uri
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
+import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -29,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.IOException
 import java.time.Instant
 import java.util.Locale
 
@@ -90,6 +93,15 @@ class LiuyiTrainerViewModel(
         private set
 
     var historyEditsDirty by mutableStateOf(false)
+        private set
+
+    var historyTransferStatus by mutableStateOf<String?>(null)
+        private set
+
+    var latestHistoryExportUri by mutableStateOf<String?>(null)
+        private set
+
+    var latestHistoryExportLabel by mutableStateOf<String?>(null)
         private set
 
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
@@ -340,6 +352,36 @@ class LiuyiTrainerViewModel(
         }
     }
 
+    fun exportHistoryBackup(uri: Uri) {
+        historyTransferStatus = "正在导出训练历史…"
+        viewModelScope.launch {
+            runCatching {
+                val backupJson = trainingHistoryRepository.exportBackupJson()
+                writeTextToUri(uri, backupJson)
+                latestHistoryExportUri = uri.toString()
+                latestHistoryExportLabel = queryDisplayName(uri) ?: "liuyi-history-backup.json"
+                historyTransferStatus = "已导出 ${recentSessions.size} 条历史记录"
+            }.onFailure { error ->
+                historyTransferStatus = "导出失败：${error.toReadableBackupMessage()}"
+            }
+        }
+    }
+
+    fun importHistoryBackup(uri: Uri) {
+        historyTransferStatus = "正在导入训练历史…"
+        historyEditsDirty = false
+        viewModelScope.launch {
+            runCatching {
+                val rawJson = readTextFromUri(uri)
+                val result = trainingHistoryRepository.importBackupJson(rawJson)
+                selectedHistorySessionId = -1L
+                historyTransferStatus = "已导入 ${result.sessionCount} 条记录，共 ${result.setCount} 组"
+            }.onFailure { error ->
+                historyTransferStatus = "导入失败：${error.toReadableBackupMessage()}"
+            }
+        }
+    }
+
     fun finishActiveTrainingFromAnywhere(): Boolean {
         return when (sessionState) {
             TrainingSessionState.Idle -> false
@@ -433,6 +475,35 @@ class LiuyiTrainerViewModel(
         voiceProbe?.shutdown()
         voiceProbe = null
         super.onCleared()
+    }
+
+    private fun writeTextToUri(
+        uri: Uri,
+        text: String,
+    ) {
+        val outputStream = getApplication<Application>().contentResolver.openOutputStream(uri)
+            ?: throw IOException("系统没有返回可写入的备份文件")
+        outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.write(text)
+        }
+    }
+
+    private fun readTextFromUri(uri: Uri): String {
+        val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
+            ?: throw IOException("无法读取所选备份文件")
+        return inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+            reader.readText()
+        }
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        val resolver = getApplication<Application>().contentResolver
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { currentCursor ->
+            if (currentCursor.moveToFirst()) {
+                return currentCursor.getString(0)?.takeIf(String::isNotBlank)
+            }
+        }
+        return null
     }
 }
 
@@ -594,6 +665,12 @@ private fun looksLikeHumanReadableVoiceName(name: String): Boolean {
     val hasLetters = stripped.any { it.isLetter() }
     val hasOnlyLettersAndDigits = stripped.all { it.isLetterOrDigit() }
     return hasLetters && !hasOnlyLettersAndDigits
+}
+
+private fun Throwable.toReadableBackupMessage(): String = when (this) {
+    is IllegalArgumentException -> message ?: "备份文件内容不完整"
+    is IOException -> message ?: "文件读写失败"
+    else -> "请确认文件格式正确，且系统文件管理器允许当前读写操作"
 }
 
 private fun resolveExerciseContext(

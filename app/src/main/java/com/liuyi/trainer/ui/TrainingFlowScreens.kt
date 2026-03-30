@@ -1,6 +1,11 @@
 package com.liuyi.trainer.ui
 
+import android.content.ClipData
+import android.content.Intent
+import android.net.Uri
 import android.speech.tts.TextToSpeech
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -173,6 +178,9 @@ data class HistoryRowPreview(
 
 data class HistoryPreview(
     val rows: List<HistoryRowPreview>,
+    val transferStatus: String?,
+    val latestExportLabel: String?,
+    val latestExportUri: String?,
 )
 
 data class HistorySetDetailPreview(
@@ -747,8 +755,22 @@ fun TrainingHistoryScreen(
     preview: HistoryPreview,
     onBack: () -> Unit,
     onBackHome: () -> Unit,
+    onExportToUri: (Uri) -> Unit,
+    onImportFromUri: (Uri) -> Unit,
     onOpenDetail: (Long) -> Unit,
 ) {
+    val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        uri?.let(onExportToUri)
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let(onImportFromUri)
+    }
+
     PrisonSurface {
         LazyColumn(
             modifier = Modifier
@@ -757,6 +779,56 @@ fun TrainingHistoryScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            item {
+                SteelPanel(soft = true) {
+                    SteelSectionHeader(
+                        title = "导入 / 导出",
+                        subtitle = "历史备份",
+                    )
+                    MutedBody(text = "导出和导入都会调用系统文件管理器，可直接浏览目录、选择文件。导入会替换当前训练历史。")
+                    preview.latestExportLabel?.let { label ->
+                        MutedBody(text = "最近导出：$label")
+                    }
+                    preview.transferStatus?.let { status ->
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SteelPrimaryButton(
+                            text = "导出备份",
+                            onClick = {
+                                exportLauncher.launch(defaultHistoryBackupFileName())
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        SteelSecondaryButton(
+                            text = "导入备份",
+                            onClick = {
+                                importLauncher.launch(arrayOf("application/json", "text/*"))
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    preview.latestExportUri?.let { uriString ->
+                        SteelSecondaryButton(
+                            text = "分享最近导出文件",
+                            onClick = {
+                                shareHistoryBackup(
+                                    context = context,
+                                    uri = Uri.parse(uriString),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
             item {
                 ScreenTopBar(
                     title = "训练历史",
@@ -1828,6 +1900,9 @@ fun buildStandardsPreview(context: ExerciseContext): StandardsPreview {
 
 fun buildHistoryPreview(
     sessions: List<TrainingSessionWithSets>,
+    transferStatus: String? = null,
+    latestExportLabel: String? = null,
+    latestExportUri: String? = null,
 ): HistoryPreview = HistoryPreview(
     rows = sessions.map { sessionWithSets ->
         val family = ExerciseCatalog.families.firstOrNull { it.id == sessionWithSets.session.familyId }
@@ -1848,6 +1923,9 @@ fun buildHistoryPreview(
             dateLabel = UiTimeFormatter.format(Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)),
         )
     },
+    transferStatus = transferStatus,
+    latestExportLabel = latestExportLabel,
+    latestExportUri = latestExportUri,
 )
 
 fun buildHistoryDetailPreview(
@@ -1924,6 +2002,26 @@ private fun formatStopwatch(durationMs: Long): String {
     val minutes = totalSeconds / 60L
     val seconds = totalSeconds % 60L
     return "%02d:%02d".format(minutes, seconds)
+}
+
+private fun defaultHistoryBackupFileName(): String {
+    val stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+        .withZone(ZoneId.systemDefault())
+        .format(Instant.now())
+    return "liuyi-history-$stamp.json"
+}
+
+private fun shareHistoryBackup(
+    context: android.content.Context,
+    uri: Uri,
+) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/json"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = ClipData.newRawUri("liuyi-history-backup", uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(sendIntent, "分享训练历史备份"))
 }
 
 private fun restSpeechCue(snapshot: com.liuyi.trainer.model.RestSnapshot): Pair<String, String>? {

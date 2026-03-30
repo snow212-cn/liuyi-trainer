@@ -31,8 +31,48 @@ interface TrainingHistoryDao {
     }
 
     @Transaction
+    suspend fun replaceAllSessions(
+        entries: List<TrainingSessionBackupEntry>,
+    ) {
+        deleteAllSessions()
+        entries.forEach { entry ->
+            insertCompletedSession(
+                session = TrainingSessionEntity(
+                    familyId = entry.familyId,
+                    stepLevel = entry.stepLevel,
+                    restPresetSeconds = entry.restPresetSeconds,
+                    sessionStartedAtUtcEpochMs = entry.sessionStartedAtUtcEpochMs,
+                    sessionEndedAtUtcEpochMs = entry.sessionEndedAtUtcEpochMs,
+                    totalSets = entry.sets.size,
+                    totalReps = entry.sets.sumOf { it.completedRepCount },
+                ),
+                sets = entry.sets
+                    .sortedBy { it.setIndex }
+                    .map { set ->
+                        TrainingSetEntity(
+                            sessionOwnerId = 0,
+                            setIndex = set.setIndex,
+                            familyId = set.familyId,
+                            stepLevel = set.stepLevel,
+                            cadenceProfileId = set.cadenceProfileId,
+                            startedAtUtcEpochMs = set.startedAtUtcEpochMs,
+                            endedAtUtcEpochMs = set.endedAtUtcEpochMs,
+                            elapsedMs = set.elapsedMs,
+                            completedRepCount = set.completedRepCount,
+                            lastCompletedPhase = set.lastCompletedPhase,
+                        )
+                    },
+            )
+        }
+    }
+
+    @Transaction
     @Query("SELECT * FROM training_sessions ORDER BY sessionEndedAtUtcEpochMs DESC")
     fun observeRecentSessions(): Flow<List<TrainingSessionWithSets>>
+
+    @Transaction
+    @Query("SELECT * FROM training_sessions ORDER BY sessionEndedAtUtcEpochMs DESC")
+    suspend fun getAllSessionsSnapshot(): List<TrainingSessionWithSets>
 
     @Query(
         """
@@ -59,6 +99,9 @@ interface TrainingHistoryDao {
         setId: Long,
         completedRepCount: Int,
     )
+
+    @Query("DELETE FROM training_sessions")
+    suspend fun deleteAllSessions()
 
     @Query("DELETE FROM training_sessions WHERE sessionId = :sessionId")
     suspend fun deleteSessionById(sessionId: Long)

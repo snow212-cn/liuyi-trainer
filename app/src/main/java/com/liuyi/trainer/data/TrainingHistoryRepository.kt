@@ -9,6 +9,9 @@ class TrainingHistoryRepository(
     fun observeRecentSessions(): Flow<List<TrainingSessionWithSets>> =
         trainingHistoryDao.observeRecentSessions()
 
+    suspend fun exportBackupJson(): String =
+        TrainingHistoryBackupCodec.encode(trainingHistoryDao.getAllSessionsSnapshot())
+
     suspend fun deleteSession(sessionId: Long) {
         trainingHistoryDao.deleteSessionById(sessionId)
     }
@@ -27,6 +30,18 @@ class TrainingHistoryRepository(
             sessionId = sessionId,
             totalSets = setRepUpdates.size,
             totalReps = setRepUpdates.sumOf { it.second },
+        )
+    }
+
+    suspend fun importBackupJson(rawJson: String): TrainingHistoryImportResult {
+        val backup = TrainingHistoryBackupCodec.decode(rawJson)
+        trainingHistoryDao.replaceAllSessions(
+            entries = backup.sessions.sortedBy { it.sessionStartedAtUtcEpochMs },
+        )
+
+        return TrainingHistoryImportResult(
+            sessionCount = backup.sessions.size,
+            setCount = backup.sessions.sumOf { it.sets.size },
         )
     }
 

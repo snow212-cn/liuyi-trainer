@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.liuyi.trainer.data.TrainingSessionWithSets
+import com.liuyi.trainer.data.TrainingHistoryImportMode
 import com.liuyi.trainer.model.DeviceVoiceOption
 import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.TrainingSessionState
@@ -367,15 +368,27 @@ class LiuyiTrainerViewModel(
         }
     }
 
-    fun importHistoryBackup(uri: Uri) {
+    fun importHistoryBackup(
+        uri: Uri,
+        mode: TrainingHistoryImportMode,
+    ) {
         historyTransferStatus = "正在导入训练历史…"
         historyEditsDirty = false
         viewModelScope.launch {
             runCatching {
                 val rawJson = readTextFromUri(uri)
-                val result = trainingHistoryRepository.importBackupJson(rawJson)
+                val result = trainingHistoryRepository.importBackupJson(
+                    rawJson = rawJson,
+                    mode = mode,
+                )
                 selectedHistorySessionId = -1L
-                historyTransferStatus = "已导入 ${result.sessionCount} 条记录，共 ${result.setCount} 组"
+                historyTransferStatus = when (mode) {
+                    TrainingHistoryImportMode.Replace ->
+                        "已替换导入 ${result.sessionCount} 条记录，共 ${result.setCount} 组"
+
+                    TrainingHistoryImportMode.Merge ->
+                        "已合并导入 ${result.sessionCount} 条记录，共 ${result.setCount} 组"
+                }
             }.onFailure { error ->
                 historyTransferStatus = "导入失败：${error.toReadableBackupMessage()}"
             }

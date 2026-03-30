@@ -35,6 +35,13 @@ interface TrainingHistoryDao {
         entries: List<TrainingSessionBackupEntry>,
     ) {
         deleteAllSessions()
+        appendSessions(entries)
+    }
+
+    @Transaction
+    suspend fun appendSessions(
+        entries: List<TrainingSessionBackupEntry>,
+    ) {
         entries.forEach { entry ->
             insertCompletedSession(
                 session = TrainingSessionEntity(

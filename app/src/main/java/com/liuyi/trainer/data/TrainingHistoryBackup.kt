@@ -186,3 +186,8 @@ data class TrainingHistoryImportResult(
     val sessionCount: Int,
     val setCount: Int,
 )
+
+enum class TrainingHistoryImportMode {
+    Replace,
+    Merge,
+}

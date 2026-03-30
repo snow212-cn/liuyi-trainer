@@ -6,6 +6,7 @@ import android.net.Uri
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,6 +39,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +58,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.liuyi.trainer.data.TrainingSessionWithSets
+import com.liuyi.trainer.data.TrainingHistoryImportMode
 import com.liuyi.trainer.model.CadencePhase
 import com.liuyi.trainer.model.ContentStatus
 import com.liuyi.trainer.model.DeviceVoiceOption
@@ -76,6 +79,9 @@ import java.util.Locale
 
 private val UiTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("M月d日 HH:mm").withZone(ZoneId.systemDefault())
+
+private val UiClockFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
 
 data class ExerciseContext(
     val family: MovementFamily,
@@ -195,9 +201,12 @@ data class HistorySetDetailPreview(
 data class HistoryDetailPreview(
     val sessionId: Long,
     val title: String,
-    val timeRangeLabel: String,
-    val totalsLabel: String,
-    val metaLines: List<String>,
+    val totalRepsLabel: String,
+    val totalSetsLabel: String,
+    val startedAtLabel: String,
+    val endedAtLabel: String,
+    val durationLabel: String,
+    val restPresetLabel: String,
     val setDetails: List<HistorySetDetailPreview>,
     val isSaveEnabled: Boolean,
 )
@@ -756,10 +765,12 @@ fun TrainingHistoryScreen(
     onBack: () -> Unit,
     onBackHome: () -> Unit,
     onExportToUri: (Uri) -> Unit,
-    onImportFromUri: (Uri) -> Unit,
+    onImportFromUri: (Uri, TrainingHistoryImportMode) -> Unit,
     onOpenDetail: (Long) -> Unit,
 ) {
     val context = LocalContext.current
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+    var showBackupDialog by remember { mutableStateOf(false) }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -768,7 +779,46 @@ fun TrainingHistoryScreen(
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        uri?.let(onImportFromUri)
+        pendingImportUri = uri
+    }
+
+    pendingImportUri?.let { importUri ->
+        ImportHistoryConfirmDialog(
+            onDismiss = { pendingImportUri = null },
+            onReplace = {
+                pendingImportUri = null
+                onImportFromUri(importUri, TrainingHistoryImportMode.Replace)
+            },
+            onMerge = {
+                pendingImportUri = null
+                onImportFromUri(importUri, TrainingHistoryImportMode.Merge)
+            },
+        )
+    }
+
+    if (showBackupDialog) {
+        BackupActionDialog(
+            latestExportLabel = preview.latestExportLabel,
+            canShare = preview.latestExportUri != null,
+            onDismiss = { showBackupDialog = false },
+            onExport = {
+                showBackupDialog = false
+                exportLauncher.launch(defaultHistoryBackupFileName())
+            },
+            onImport = {
+                showBackupDialog = false
+                importLauncher.launch(arrayOf("application/json", "text/*"))
+            },
+            onShare = {
+                preview.latestExportUri?.let { uriString ->
+                    showBackupDialog = false
+                    shareHistoryBackup(
+                        context = context,
+                        uri = Uri.parse(uriString),
+                    )
+                }
+            },
+        )
     }
 
     PrisonSurface {
@@ -780,61 +830,16 @@ fun TrainingHistoryScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                SteelPanel(soft = true) {
-                    SteelSectionHeader(
-                        title = "导入 / 导出",
-                        subtitle = "历史备份",
-                    )
-                    MutedBody(text = "导出和导入都会调用系统文件管理器，可直接浏览目录、选择文件。导入会替换当前训练历史。")
-                    preview.latestExportLabel?.let { label ->
-                        MutedBody(text = "最近导出：$label")
-                    }
-                    preview.transferStatus?.let { status ->
-                        Text(
-                            text = status,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SteelPrimaryButton(
-                            text = "导出备份",
-                            onClick = {
-                                exportLauncher.launch(defaultHistoryBackupFileName())
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                        SteelSecondaryButton(
-                            text = "导入备份",
-                            onClick = {
-                                importLauncher.launch(arrayOf("application/json", "text/*"))
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    preview.latestExportUri?.let { uriString ->
-                        SteelSecondaryButton(
-                            text = "分享最近导出文件",
-                            onClick = {
-                                shareHistoryBackup(
-                                    context = context,
-                                    uri = Uri.parse(uriString),
-                                )
-                            },
-                        )
-                    }
-                }
+                HistoryTopBar(
+                    onBack = onBack,
+                    onOpenBackup = { showBackupDialog = true },
+                )
             }
 
-            item {
-                ScreenTopBar(
-                    title = "训练历史",
-                    actionLabel = "返回上一页",
-                    onAction = onBack,
-                )
+            preview.transferStatus?.let { status ->
+                item {
+                    MutedBody(text = status)
+                }
             }
 
             if (preview.rows.isEmpty()) {
@@ -899,12 +904,29 @@ fun TrainingHistoryDetailScreen(
             } else {
                 SteelPanel {
                     SectionKicker(text = preview.title)
-                    Text(
-                        text = preview.totalsLabel,
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        MetricPlate(
+                            label = "总次数",
+                            value = preview.totalRepsLabel,
+                            modifier = Modifier.weight(1f),
+                            compact = true,
+                        )
+                        MetricPlate(
+                            label = "组数",
+                            value = preview.totalSetsLabel,
+                            modifier = Modifier.weight(1f),
+                            compact = true,
+                        )
+                    }
+                    HistoryDetailMetaBand(
+                        startedAtLabel = preview.startedAtLabel,
+                        endedAtLabel = preview.endedAtLabel,
+                        durationLabel = preview.durationLabel,
+                        restPresetLabel = preview.restPresetLabel,
                     )
-                    MutedBody(text = preview.timeRangeLabel)
                 }
 
                 DetailActionRow(
@@ -913,16 +935,6 @@ fun TrainingHistoryDetailScreen(
                     onReuse = onReuse,
                     onDelete = onDelete,
                 )
-
-                SteelPanel(soft = true) {
-                    SteelSectionHeader(
-                        title = "本次训练信息",
-                        subtitle = "记录",
-                    )
-                    preview.metaLines.forEach { line ->
-                        MutedBody(text = line)
-                    }
-                }
 
                 SteelPanel(soft = true) {
                     SteelSectionHeader(
@@ -944,6 +956,149 @@ fun TrainingHistoryDetailScreen(
             SteelSecondaryButton(
                 text = "回到首页",
                 onClick = onBackHome,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryTopBar(
+    onBack: () -> Unit,
+    onOpenBackup: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "训练历史",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SteelCompactButton(
+                text = "备份",
+                onClick = onOpenBackup,
+            )
+            SteelCompactButton(
+                text = "返回",
+                onClick = onBack,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BackupActionDialog(
+    latestExportLabel: String?,
+    canShare: Boolean,
+    onDismiss: () -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    onShare: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "历史备份",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                latestExportLabel?.let { label ->
+                    MutedBody(text = label)
+                }
+                SteelPrimaryButton(
+                    text = "导出备份",
+                    onClick = onExport,
+                )
+                SteelSecondaryButton(
+                    text = "导入备份",
+                    onClick = onImport,
+                )
+                if (canShare) {
+                    SteelSecondaryButton(
+                        text = "分享备份",
+                        onClick = onShare,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
+        dismissButton = {},
+    )
+}
+
+@Composable
+private fun HistoryDetailMetaBand(
+    startedAtLabel: String,
+    endedAtLabel: String,
+    durationLabel: String,
+    restPresetLabel: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            DetailMetaChip(
+                label = "开始",
+                value = startedAtLabel,
+                modifier = Modifier.weight(1f),
+            )
+            DetailMetaChip(
+                label = "结束",
+                value = endedAtLabel,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            DetailMetaChip(
+                label = "用时",
+                value = durationLabel,
+                modifier = Modifier.weight(1f),
+            )
+            DetailMetaChip(
+                label = "休息预设",
+                value = restPresetLabel,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailMetaChip(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.34f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
@@ -1052,6 +1207,7 @@ private fun VoicePersonSelector(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box {
             SelectorDropdownField(
+                label = "语音人物",
                 value = selectedLabel,
                 onClick = { expanded = true },
             )
@@ -1077,6 +1233,41 @@ private fun VoicePersonSelector(
             }
         }
     }
+}
+
+@Composable
+private fun ImportHistoryConfirmDialog(
+    onDismiss: () -> Unit,
+    onReplace: () -> Unit,
+    onMerge: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "导入训练历史",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Text("请选择导入方式。替换会清空当前历史后再导入，合并会保留当前历史，并把备份中的记录追加进来。")
+        },
+        confirmButton = {
+            TextButton(onClick = onReplace) {
+                Text("替换导入")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onMerge) {
+                    Text("合并导入")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("取消")
+                }
+            }
+        },
+    )
 }
 
 @Composable
@@ -1564,26 +1755,69 @@ private fun DetailSetBlock(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "第 ${detail.setIndex} 组",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.78f))
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+            ) {
+                Text(
+                    text = "第${detail.setIndex}组",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            OutlinedTextField(
+                value = detail.repValue,
+                onValueChange = onValueChange,
+                label = { Text("次数") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.weight(1f),
             )
         }
-        OutlinedTextField(
-            value = detail.repValue,
-            onValueChange = onValueChange,
-            label = { Text("次数") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            DetailInlineMetaChip(
+                text = "时长 ${detail.durationLabel}",
+                modifier = Modifier.weight(1f),
+            )
+            DetailInlineMetaChip(
+                text = detail.restAfterLabel,
+                modifier = Modifier.weight(1f),
+            )
+            DetailInlineMetaChip(
+                text = "结束 ${detail.endedAtLabel}",
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailInlineMetaChip(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.28f))
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        MutedBody(text = "时长 ${detail.durationLabel}")
-        MutedBody(text = detail.restAfterLabel)
-        MutedBody(text = "结束 ${detail.endedAtLabel}")
     }
 }
 
@@ -1954,25 +2188,25 @@ fun buildHistoryDetailPreview(
             append("·")
             append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
         },
-        timeRangeLabel = "开始 ${UiTimeFormatter.format(startedAt)} · 结束 ${UiTimeFormatter.format(endedAt)}",
-        totalsLabel = "共${sessionWithSets.session.totalSets}组 · ${totalReps}次",
-        metaLines = listOf(
-            "训练时长 ${formatStopwatch(sessionDurationMs)}",
-            "休息预设 ${sessionWithSets.session.restPresetSeconds} 秒",
-        ),
+        totalRepsLabel = "${totalReps}次",
+        totalSetsLabel = "${sessionWithSets.session.totalSets}组",
+        startedAtLabel = UiTimeFormatter.format(startedAt),
+        endedAtLabel = UiTimeFormatter.format(endedAt),
+        durationLabel = formatStopwatch(sessionDurationMs),
+        restPresetLabel = "${sessionWithSets.session.restPresetSeconds}秒",
         setDetails = sortedSets.mapIndexed { index, set ->
             val restAfterLabel = if (index == sortedSets.lastIndex) {
                 val finalGapMs = (sessionWithSets.session.sessionEndedAtUtcEpochMs - set.endedAtUtcEpochMs)
                     .coerceAtLeast(0L)
                 if (finalGapMs > 0L) {
-                    "本组后休息 ${formatStopwatch(finalGapMs)}"
+                    "休息 ${formatStopwatch(finalGapMs)}"
                 } else {
-                    "本组后结束训练"
+                    "本组后结束"
                 }
             } else {
                 val nextSet = sortedSets[index + 1]
                 val restGapMs = (nextSet.startedAtUtcEpochMs - set.endedAtUtcEpochMs).coerceAtLeast(0L)
-                "本组后休息 ${formatStopwatch(restGapMs)}"
+                "休息 ${formatStopwatch(restGapMs)}"
             }
             HistorySetDetailPreview(
                 setId = set.setId,
@@ -1980,7 +2214,7 @@ fun buildHistoryDetailPreview(
                 repValue = repDrafts.getOrNull(index) ?: set.completedRepCount.toString(),
                 durationLabel = formatStopwatch(set.elapsedMs),
                 restAfterLabel = restAfterLabel,
-                endedAtLabel = UiTimeFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs)),
+                endedAtLabel = UiClockFormatter.format(Instant.ofEpochMilli(set.endedAtUtcEpochMs)),
             )
         },
         isSaveEnabled = hasPendingEdits,

@@ -34,10 +34,27 @@ class TrainingHistoryRepository(
     }
 
     suspend fun importBackupJson(rawJson: String): TrainingHistoryImportResult {
-        val backup = TrainingHistoryBackupCodec.decode(rawJson)
-        trainingHistoryDao.replaceAllSessions(
-            entries = backup.sessions.sortedBy { it.sessionStartedAtUtcEpochMs },
+        return importBackupJson(
+            rawJson = rawJson,
+            mode = TrainingHistoryImportMode.Replace,
         )
+    }
+
+    suspend fun importBackupJson(
+        rawJson: String,
+        mode: TrainingHistoryImportMode,
+    ): TrainingHistoryImportResult {
+        val backup = TrainingHistoryBackupCodec.decode(rawJson)
+        val sortedEntries = backup.sessions.sortedBy { it.sessionStartedAtUtcEpochMs }
+        when (mode) {
+            TrainingHistoryImportMode.Replace -> {
+                trainingHistoryDao.replaceAllSessions(entries = sortedEntries)
+            }
+
+            TrainingHistoryImportMode.Merge -> {
+                trainingHistoryDao.appendSessions(entries = sortedEntries)
+            }
+        }
 
         return TrainingHistoryImportResult(
             sessionCount = backup.sessions.size,

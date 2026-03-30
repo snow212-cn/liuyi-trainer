@@ -2,10 +2,12 @@ package com.liuyi.trainer.ui
 
 import android.content.ClipData
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,17 +54,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.liuyi.trainer.data.TrainingSessionWithSets
 import com.liuyi.trainer.data.TrainingHistoryImportMode
 import com.liuyi.trainer.model.CadencePhase
-import com.liuyi.trainer.model.ContentStatus
 import com.liuyi.trainer.model.DeviceVoiceOption
 import com.liuyi.trainer.model.ExerciseCatalog
+import com.liuyi.trainer.model.ExerciseStandardsCatalog
 import com.liuyi.trainer.model.MovementFamily
 import com.liuyi.trainer.model.MovementStep
 import com.liuyi.trainer.model.RestPreset
@@ -154,9 +158,13 @@ data class SummaryPreview(
 data class StandardsPreview(
     val context: ExerciseContext,
     val sourceLabel: String,
-    val contentStatusLabel: String,
-    val statusHint: String,
     val sections: List<Pair<String, String>>,
+    val illustrations: List<StandardsIllustrationPreview>,
+)
+
+data class StandardsIllustrationPreview(
+    val assetPath: String,
+    val caption: String,
 )
 
 data class TrainingSettingsPreview(
@@ -713,8 +721,19 @@ fun StandardsScreen(
                     fontWeight = FontWeight.Bold,
                 )
                 MutedBody(text = preview.sourceLabel)
-                StatusBadge(label = preview.contentStatusLabel)
-                MutedBody(text = preview.statusHint)
+            }
+
+            SteelPanel(soft = true) {
+                Text(
+                    text = "动作示意",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (preview.illustrations.isEmpty()) {
+                    StandardsIllustrationFrame()
+                } else {
+                    StandardsIllustrationGallery(illustrations = preview.illustrations)
+                }
             }
 
             preview.sections.forEach { (title, body) ->
@@ -729,15 +748,6 @@ fun StandardsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-            }
-
-            SteelPanel(soft = true) {
-                Text(
-                    text = "动作示意图",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                StandardsIllustrationFrame()
             }
 
             Row(
@@ -1557,6 +1567,57 @@ private fun SummarySetEditor(
 }
 
 @Composable
+private fun StandardsIllustrationGallery(
+    illustrations: List<StandardsIllustrationPreview>,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        illustrations.forEachIndexed { index, illustration ->
+            StandardsIllustrationItem(illustration = illustration)
+            if (index != illustrations.lastIndex) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StandardsIllustrationItem(
+    illustration: StandardsIllustrationPreview,
+) {
+    val context = LocalContext.current
+    val imageBitmap = remember(illustration.assetPath) {
+        runCatching {
+            context.assets.open(illustration.assetPath).use { stream ->
+                BitmapFactory.decodeStream(stream)?.asImageBitmap()
+            }
+        }.getOrNull()
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (imageBitmap == null) {
+            StandardsIllustrationFrame()
+        } else {
+            Image(
+                bitmap = imageBitmap,
+                contentDescription = illustration.caption,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp)),
+            )
+        }
+
+        if (illustration.caption.isNotBlank()) {
+            MutedBody(text = illustration.caption)
+        }
+    }
+}
+
+@Composable
 private fun StandardsIllustrationFrame() {
     Box(
         modifier = Modifier
@@ -1817,23 +1878,6 @@ private fun DetailInlineMetaChip(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun StatusBadge(label: String) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
         )
     }
 }
@@ -2109,26 +2153,24 @@ fun buildSummaryPreview(
 }
 
 fun buildStandardsPreview(context: ExerciseContext): StandardsPreview {
-    val statusLabel = when (context.step.contentStatus) {
-        ContentStatus.Placeholder -> "待补充"
-        ContentStatus.Draft -> "整理中"
-        ContentStatus.Ready -> "已整理"
-    }
-    val hint = when (context.step.contentStatus) {
-        ContentStatus.Placeholder -> "这一式的原书摘录和示意图还没有接入。"
-        ContentStatus.Draft -> "这一式内容已开始整理，但还需要继续补全。"
-        ContentStatus.Ready -> "这一式内容已经整理完成，可直接用于训练前复核。"
-    }
+    val article = ExerciseStandardsCatalog.find(
+        familyId = context.family.id,
+        stepLevel = context.step.level,
+    )
 
     return StandardsPreview(
         context = context,
-        sourceLabel = sourceChapterTitle(context.family.id),
-        contentStatusLabel = statusLabel,
-        statusHint = hint,
-        sections = listOf(
+        sourceLabel = article?.sourceLabel ?: sourceChapterTitle(context.family.id),
+        sections = article?.sections?.map { it.title to it.body } ?: listOf(
             "标准说明" to "这里用于放入这一式来自原书的核心动作标准，只保留训练前真正需要快速复核的内容。",
             "动作要点 / 常见错误" to "这里用于整理动作路径、呼吸、节奏配合，以及可能需要的辅助信息。",
         ),
+        illustrations = article?.illustrations?.map {
+            StandardsIllustrationPreview(
+                assetPath = it.assetPath,
+                caption = it.caption,
+            )
+        } ?: emptyList(),
     )
 }
 

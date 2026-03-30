@@ -5,3 +5,8 @@ enum class VoiceGuideMode {
     Counting,
     Breathing,
 }
+
+data class DeviceVoiceOption(
+    val id: String,
+    val label: String,
+)

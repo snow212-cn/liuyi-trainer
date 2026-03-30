@@ -1,6 +1,8 @@
 package com.liuyi.trainer.app
 
 import android.app.Application
+import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -9,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.liuyi.trainer.data.TrainingSessionWithSets
+import com.liuyi.trainer.model.DeviceVoiceOption
 import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.TrainingSessionState
 import com.liuyi.trainer.model.VoiceGuideMode
@@ -27,12 +30,14 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.util.Locale
 
 class LiuyiTrainerViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
     private val defaultContext = defaultExerciseContext()
     private var tickerJob: Job? = null
+    private var voiceProbe: TextToSpeech? = null
     private val trainingHistoryRepository =
         (application as LiuyiTrainerApplication).trainingHistoryRepository
 
@@ -60,6 +65,12 @@ class LiuyiTrainerViewModel(
     var voiceGuideMode by mutableStateOf(VoiceGuideMode.Command)
         private set
 
+    var availableVoices by mutableStateOf<List<DeviceVoiceOption>>(listOf(defaultVoiceOption()))
+        private set
+
+    var selectedVoiceId by mutableStateOf(defaultVoiceOption().id)
+        private set
+
     var preparationSeconds by mutableIntStateOf(3)
         private set
 
@@ -85,6 +96,7 @@ class LiuyiTrainerViewModel(
     val preparationOptions: List<Int> = listOf(3, 5, 8)
 
     init {
+        loadAvailableVoices()
         viewModelScope.launch {
             trainingHistoryRepository.observeRecentSessions().collect { sessions ->
                 recentSessions = sessions
@@ -136,6 +148,10 @@ class LiuyiTrainerViewModel(
 
     fun updateVoiceGuideMode(mode: VoiceGuideMode) {
         voiceGuideMode = mode
+    }
+
+    fun updateSelectedVoice(voiceId: String) {
+        selectedVoiceId = voiceId
     }
 
     fun updatePreparationSeconds(seconds: Int) {
@@ -389,6 +405,64 @@ class LiuyiTrainerViewModel(
             ?.map { it.completedRepCount.toString() }
             ?: emptyList()
     }
+
+    private fun loadAvailableVoices() {
+        var engine: TextToSpeech? = null
+        engine = TextToSpeech(getApplication()) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val discoveredVoices = engine
+                    ?.voices
+                    .orEmpty()
+                    .filter { voice ->
+                        !voice.isNetworkConnectionRequired &&
+                            !voice.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+                    }
+                    .sortedWith(
+                        compareBy<Voice> { it.locale.toLanguageTag() }
+                            .thenBy { it.name },
+                    )
+                    .map { voice -> voice.toDeviceVoiceOption() }
+
+                availableVoices = listOf(defaultVoiceOption()) + discoveredVoices
+                if (availableVoices.none { it.id == selectedVoiceId }) {
+                    selectedVoiceId = defaultVoiceOption().id
+                }
+            } else {
+                availableVoices = listOf(defaultVoiceOption())
+                selectedVoiceId = defaultVoiceOption().id
+            }
+
+            engine?.shutdown()
+            if (voiceProbe === engine) {
+                voiceProbe = null
+            }
+        }
+        voiceProbe = engine
+    }
+
+    override fun onCleared() {
+        voiceProbe?.shutdown()
+        voiceProbe = null
+        super.onCleared()
+    }
+}
+
+private fun defaultVoiceOption(): DeviceVoiceOption = DeviceVoiceOption(
+    id = "",
+    label = "系统默认",
+)
+
+private fun Voice.toDeviceVoiceOption(): DeviceVoiceOption {
+    val localeLabel = locale.getDisplayName(Locale.SIMPLIFIED_CHINESE)
+    val shortName = name
+        .substringAfterLast('/')
+        .substringAfterLast('#')
+        .substringAfterLast('.')
+
+    return DeviceVoiceOption(
+        id = name,
+        label = "$localeLabel·$shortName",
+    )
 }
 
 private fun resolveExerciseContext(

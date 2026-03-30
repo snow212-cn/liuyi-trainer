@@ -97,6 +97,7 @@ fun LiuyiTrainerApp(
                         nowUtc = appViewModel.nowUtc,
                     ),
                     speechEnabled = appViewModel.speechEnabled,
+                    selectedVoiceId = appViewModel.selectedVoiceId,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -110,6 +111,7 @@ fun LiuyiTrainerApp(
                         voiceGuideMode = appViewModel.voiceGuideMode,
                         speechEnabled = appViewModel.speechEnabled,
                     ),
+                    selectedVoiceId = appViewModel.selectedVoiceId,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -162,6 +164,7 @@ fun LiuyiTrainerApp(
                         speechEnabled = appViewModel.speechEnabled,
                     ),
                     speechEnabled = appViewModel.speechEnabled,
+                    selectedVoiceId = appViewModel.selectedVoiceId,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -209,6 +212,8 @@ fun LiuyiTrainerApp(
                 preview = buildSettingsPreview(
                     speechEnabled = appViewModel.speechEnabled,
                     voiceGuideMode = appViewModel.voiceGuideMode,
+                    availableVoices = appViewModel.availableVoices,
+                    selectedVoiceId = appViewModel.selectedVoiceId,
                     restPresetSeconds = appViewModel.restPresetSeconds,
                     restPresetOptions = appViewModel.restPresetOptions,
                     preparationSeconds = appViewModel.preparationSeconds,
@@ -223,6 +228,7 @@ fun LiuyiTrainerApp(
                 },
                 onUpdateSpeechEnabled = appViewModel::updateSpeechEnabled,
                 onUpdateVoiceGuideMode = appViewModel::updateVoiceGuideMode,
+                onUpdateSelectedVoice = appViewModel::updateSelectedVoice,
                 onUpdateRestPreset = appViewModel::selectRestPreset,
                 onUpdatePreparationSeconds = appViewModel::updatePreparationSeconds,
                 onUpdateRestCountdownVoiceEnabled = appViewModel::updateRestCountdownVoiceEnabled,
@@ -306,10 +312,10 @@ private fun activeSessionHomeLabel(state: TrainingSessionState): String? = when 
 }
 
 private fun homeSettingsSummary(appViewModel: LiuyiTrainerViewModel): String =
-    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"} · ${appViewModel.restPresetSeconds}秒休息"
+    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"}·${appViewModel.restPresetSeconds}秒休息"
 
 private fun readySettingsSummary(appViewModel: LiuyiTrainerViewModel): String =
-    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"} · ${appViewModel.restPresetSeconds}秒休息 · ${appViewModel.preparationSeconds}秒准备"
+    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"}·${appViewModel.restPresetSeconds}秒休息·${appViewModel.preparationSeconds}秒准备"
 
 private fun com.liuyi.trainer.model.VoiceGuideMode.labelZh(): String = when (this) {
     com.liuyi.trainer.model.VoiceGuideMode.Command -> "起落停"

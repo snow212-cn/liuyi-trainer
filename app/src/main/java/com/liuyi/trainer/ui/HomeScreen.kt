@@ -54,7 +54,7 @@ fun HomeScreen(
             SteelPanel {
                 SectionKicker(text = "当前训练")
                 Text(
-                    text = "${selectedFamily.titleZh} · 第${selectedStep.level}式",
+                    text = "${selectedFamily.titleZh}·${selectedStep.label}",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -80,10 +80,6 @@ fun HomeScreen(
                     onOpenSettings = onOpenSettings,
                     onOpenStandards = onOpenStandards,
                     onOpenHistory = onOpenHistory,
-                )
-                HomeMetaTag(
-                    modifier = Modifier.fillMaxWidth(),
-                    label = "原书节奏 2-1-2",
                 )
             }
 
@@ -354,26 +350,9 @@ private fun StepSelectionBlock(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                     )
-                    MutedBody(text = "当前式名")
+                    MutedBody(text = "${currentStep.level}/$totalSteps")
                 }
             }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "第${currentStep.level}式",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = "${currentStep.level} / $totalSteps",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
 
         Row(
@@ -384,21 +363,12 @@ private fun StepSelectionBlock(
                 modifier = Modifier.weight(1f),
                 label = "上一式",
                 step = previousStep,
-                current = false,
                 onClick = { previousStep?.let { onSelectStep(it.level) } },
-            )
-            NeighborStepTile(
-                modifier = Modifier.weight(1f),
-                label = "当前式",
-                step = currentStep,
-                current = true,
-                onClick = { onSelectStep(currentStep.level) },
             )
             NeighborStepTile(
                 modifier = Modifier.weight(1f),
                 label = "下一式",
                 step = nextStep,
-                current = false,
                 onClick = { nextStep?.let { onSelectStep(it.level) } },
             )
         }
@@ -409,7 +379,6 @@ private fun StepSelectionBlock(
 private fun NeighborStepTile(
     label: String,
     step: MovementStep?,
-    current: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -418,18 +387,18 @@ private fun NeighborStepTile(
             .clip(RoundedInner)
             .border(
                 width = 1.dp,
-                color = if (current) {
-                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
-                } else {
+                color = if (step != null) {
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
                 },
                 shape = RoundedInner,
             )
             .background(
-                if (current) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-                } else {
+                if (step != null) {
                     MaterialTheme.colorScheme.surface.copy(alpha = 0.22f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.12f)
                 },
             )
             .clickable(enabled = step != null, onClick = onClick)
@@ -442,7 +411,7 @@ private fun NeighborStepTile(
                 color = MaterialTheme.colorScheme.secondary,
             )
             Text(
-                text = if (step == null) "无" else "第${step.level}式",
+                text = if (step == null) "无" else "${step.level}式",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
             )

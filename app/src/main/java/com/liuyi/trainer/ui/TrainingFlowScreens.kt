@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.liuyi.trainer.data.TrainingSessionWithSets
 import com.liuyi.trainer.model.CadencePhase
 import com.liuyi.trainer.model.ContentStatus
+import com.liuyi.trainer.model.DeviceVoiceOption
 import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.MovementFamily
 import com.liuyi.trainer.model.MovementStep
@@ -149,6 +150,8 @@ data class TrainingSettingsPreview(
     val speechEnabled: Boolean,
     val voiceGuideMode: VoiceGuideMode,
     val voiceModeLabel: String,
+    val availableVoices: List<DeviceVoiceOption>,
+    val selectedVoiceId: String,
     val restPresetSeconds: Int,
     val restPresetOptions: List<Int>,
     val preparationSeconds: Int,
@@ -206,7 +209,7 @@ fun TrainingReadyScreen(
             SteelPanel {
                 SectionKicker(text = "准备")
                 Text(
-                    text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                    text = "${preview.context.family.titleZh}·${preview.context.step.label}",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -226,7 +229,6 @@ fun TrainingReadyScreen(
                 )
                 ReadySettingRow(label = "完整循环", value = "${preview.cadenceSeconds} 秒")
                 ReadySettingRow(label = "训练设置", value = preview.cadenceLabel)
-                MutedBody(text = "进入训练页后不会自动开始，必须由你手动点“开始本组”。")
             }
 
             Row(
@@ -252,12 +254,14 @@ fun TrainingReadyScreen(
 fun TrainingPreparationScreen(
     preview: PreparingPreview,
     speechEnabled: Boolean,
+    selectedVoiceId: String,
     onBack: () -> Unit,
 ) {
     SpeechCueEffect(
         enabled = speechEnabled,
         cueKey = preview.speechCueKey,
         cueText = preview.speechCueText,
+        selectedVoiceId = selectedVoiceId,
     )
 
     PrisonSurface {
@@ -270,8 +274,8 @@ fun TrainingPreparationScreen(
 
             StatusStrip(
                 lines = listOf(
-                    "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组",
+                    "${preview.context.family.titleZh}·${preview.context.step.label}",
+                    "第${preview.currentSetIndex}组 · 已完成${preview.completedSetCount}组",
                 ),
             )
 
@@ -333,6 +337,7 @@ fun TrainingPreparationScreen(
 @Composable
 fun TrainingRunningScreen(
     preview: RunningPreview,
+    selectedVoiceId: String,
     onBack: () -> Unit,
     onFinishSet: () -> Unit,
     onCompleteTraining: () -> Unit,
@@ -341,6 +346,7 @@ fun TrainingRunningScreen(
         enabled = preview.speechCueText != null,
         cueKey = preview.speechCueKey,
         cueText = preview.speechCueText,
+        selectedVoiceId = selectedVoiceId,
     )
 
     PrisonSurface {
@@ -353,8 +359,8 @@ fun TrainingRunningScreen(
 
             StatusStrip(
                 lines = listOf(
-                    "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "第 ${preview.currentSetIndex} 组 · 已完成 ${preview.completedSetCount} 组",
+                    "${preview.context.family.titleZh}·${preview.context.step.label}",
+                    "第${preview.currentSetIndex}组 · 已完成${preview.completedSetCount}组",
                 ),
             )
 
@@ -410,6 +416,7 @@ fun TrainingRunningScreen(
 fun TrainingRestScreen(
     preview: RestPreview,
     speechEnabled: Boolean,
+    selectedVoiceId: String,
     onBack: () -> Unit,
     onStartNextSet: () -> Unit,
     onCompleteTraining: () -> Unit,
@@ -418,6 +425,7 @@ fun TrainingRestScreen(
         enabled = speechEnabled,
         cueKey = preview.speechCueKey,
         cueText = preview.speechCueText,
+        selectedVoiceId = selectedVoiceId,
     )
 
     PrisonSurface {
@@ -430,8 +438,8 @@ fun TrainingRestScreen(
 
             StatusStrip(
                 lines = listOf(
-                    "${preview.context.family.titleZh} · ${preview.context.step.label}",
-                    "已完成 ${preview.completedSetCount} 组 · 累计 ${preview.totalRepCount} 次",
+                    "${preview.context.family.titleZh}·${preview.context.step.label}",
+                    "已完成${preview.completedSetCount}组 · 累计${preview.totalRepCount}次",
                     "休息预设 ${preview.presetLabel}",
                 ),
             )
@@ -497,9 +505,9 @@ fun TrainingSummaryScreen(
             )
 
             SteelPanel {
-                SectionKicker(text = "${preview.context.family.titleZh} · ${preview.context.step.label}")
+                SectionKicker(text = "${preview.context.family.titleZh}·${preview.context.step.label}")
                 Text(
-                    text = "共 ${preview.totalSets} 组 · ${preview.totalReps} 次",
+                    text = "共${preview.totalSets}组 · ${preview.totalReps}次",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -560,6 +568,7 @@ fun TrainingSettingsScreen(
     onBackHome: () -> Unit,
     onUpdateSpeechEnabled: (Boolean) -> Unit,
     onUpdateVoiceGuideMode: (VoiceGuideMode) -> Unit,
+    onUpdateSelectedVoice: (String) -> Unit,
     onUpdateRestPreset: (Int) -> Unit,
     onUpdatePreparationSeconds: (Int) -> Unit,
     onUpdateRestCountdownVoiceEnabled: (Boolean) -> Unit,
@@ -601,6 +610,18 @@ fun TrainingSettingsScreen(
                 VoiceModeSelector(
                     selectedMode = preview.voiceGuideMode,
                     onSelect = onUpdateVoiceGuideMode,
+                )
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "语音人物",
+                    subtitle = if (preview.selectedVoiceId.isBlank()) "系统默认" else "已选择",
+                )
+                VoicePersonSelector(
+                    voices = preview.availableVoices,
+                    selectedVoiceId = preview.selectedVoiceId,
+                    onSelect = onUpdateSelectedVoice,
                 )
             }
 
@@ -667,7 +688,7 @@ fun StandardsScreen(
             SteelPanel {
                 SectionKicker(text = "动作标准")
                 Text(
-                    text = "${preview.context.family.titleZh} · ${preview.context.step.label}",
+                    text = "${preview.context.family.titleZh}·${preview.context.step.label}",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -933,6 +954,39 @@ private fun VoiceModeSelector(
                 text = label,
                 onClick = { onSelect(mode) },
             )
+        }
+    }
+}
+
+@Composable
+private fun VoicePersonSelector(
+    voices: List<DeviceVoiceOption>,
+    selectedVoiceId: String,
+    onSelect: (String) -> Unit,
+) {
+    if (voices.isEmpty()) {
+        MutedBody(text = "当前设备没有返回可选语音人物，将继续使用系统默认语音。")
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        voices.chunked(2).forEach { rowVoices ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowVoices.forEach { voice ->
+                    TogglePill(
+                        modifier = Modifier.weight(1f),
+                        selected = selectedVoiceId == voice.id,
+                        text = voice.label,
+                        onClick = { onSelect(voice.id) },
+                    )
+                }
+                repeat(2 - rowVoices.size) {
+                    Box(modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }
@@ -1421,6 +1475,7 @@ private fun SpeechCueEffect(
     enabled: Boolean,
     cueKey: String?,
     cueText: String?,
+    selectedVoiceId: String = "",
 ) {
     val context = LocalContext.current
     var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -1430,7 +1485,6 @@ private fun SpeechCueEffect(
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                textToSpeech?.language = Locale.SIMPLIFIED_CHINESE
                 engineReady = true
             } else {
                 engineReady = false
@@ -1444,6 +1498,20 @@ private fun SpeechCueEffect(
             engine.shutdown()
             textToSpeech = null
             engineReady = false
+        }
+    }
+
+    LaunchedEffect(textToSpeech, engineReady, selectedVoiceId) {
+        val engine = textToSpeech ?: return@LaunchedEffect
+        if (!engineReady) {
+            return@LaunchedEffect
+        }
+        if (selectedVoiceId.isBlank()) {
+            engine.language = Locale.SIMPLIFIED_CHINESE
+        } else {
+            engine.voices
+                ?.firstOrNull { it.name == selectedVoiceId }
+                ?.let { voice -> engine.voice = voice }
         }
     }
 
@@ -1481,6 +1549,8 @@ fun buildTrainingEntryPreview(
 fun buildSettingsPreview(
     speechEnabled: Boolean,
     voiceGuideMode: VoiceGuideMode,
+    availableVoices: List<DeviceVoiceOption>,
+    selectedVoiceId: String,
     restPresetSeconds: Int,
     restPresetOptions: List<Int>,
     preparationSeconds: Int,
@@ -1490,6 +1560,8 @@ fun buildSettingsPreview(
     speechEnabled = speechEnabled,
     voiceGuideMode = voiceGuideMode,
     voiceModeLabel = if (speechEnabled) voiceGuideMode.labelZh() else "语音关闭",
+    availableVoices = availableVoices,
+    selectedVoiceId = selectedVoiceId,
     restPresetSeconds = restPresetSeconds,
     restPresetOptions = restPresetOptions,
     preparationSeconds = preparationSeconds,
@@ -1701,7 +1773,7 @@ fun buildHistoryPreview(
             sessionId = sessionWithSets.session.sessionId,
             title = buildString {
                 append(family?.titleZh ?: sessionWithSets.session.familyId)
-                append(" · ")
+                append("·")
                 append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
             },
             totalRepsLabel = sessionWithSets.session.totalReps.toString(),
@@ -1738,15 +1810,14 @@ fun buildHistoryDetailPreview(
         sessionId = sessionWithSets.session.sessionId,
         title = buildString {
             append(family?.titleZh ?: sessionWithSets.session.familyId)
-            append(" · ")
+            append("·")
             append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
         },
         timeRangeLabel = "开始 ${UiTimeFormatter.format(startedAt)} · 结束 ${UiTimeFormatter.format(endedAt)}",
-        totalsLabel = "共 ${sessionWithSets.session.totalSets} 组 · ${totalReps} 次",
+        totalsLabel = "共${sessionWithSets.session.totalSets}组 · ${totalReps}次",
         metaLines = listOf(
             "训练时长 ${formatStopwatch(sessionDurationMs)}",
             "休息预设 ${sessionWithSets.session.restPresetSeconds} 秒",
-            "下方可直接修正每组次数",
         ),
         setDetails = sortedSets.mapIndexed { index, set ->
             val restAfterLabel = if (index == sortedSets.lastIndex) {

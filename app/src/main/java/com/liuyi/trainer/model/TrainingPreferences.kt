@@ -9,4 +9,5 @@ enum class VoiceGuideMode {
 data class DeviceVoiceOption(
     val id: String,
     val label: String,
+    val languageTag: String = "",
 )

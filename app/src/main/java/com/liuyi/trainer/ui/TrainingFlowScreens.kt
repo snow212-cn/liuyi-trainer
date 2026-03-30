@@ -623,7 +623,6 @@ fun TrainingSettingsScreen(
                     selectedVoiceId = preview.selectedVoiceId,
                     onSelect = onUpdateSelectedVoice,
                 )
-                MutedBody(text = "这里只能显示当前语音引擎实际返回的语音条目；如果系统没有提供人名，就只能显示语音ID。")
             }
 
             SteelPanel(soft = true) {
@@ -971,23 +970,13 @@ private fun VoicePersonSelector(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        voices.chunked(2).forEach { rowVoices ->
-            Row(
+        voices.forEach { voice ->
+            TogglePill(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                rowVoices.forEach { voice ->
-                    TogglePill(
-                        modifier = Modifier.weight(1f),
-                        selected = selectedVoiceId == voice.id,
-                        text = voice.label,
-                        onClick = { onSelect(voice.id) },
-                    )
-                }
-                repeat(2 - rowVoices.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
-            }
+                selected = selectedVoiceId == voice.id,
+                text = voice.label,
+                onClick = { onSelect(voice.id) },
+            )
         }
     }
 }

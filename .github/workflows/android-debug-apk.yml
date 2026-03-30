@@ -154,11 +154,36 @@ jobs:
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew ${{ steps.build_variant.outputs.gradle_task }} --build-cache --no-configuration-cache --stacktrace -PANDROID_VERSION_CODE=${{ github.run_number }} -PANDROID_VERSION_NAME=0.1.${{ github.run_number }}
 
+      - name: Prepare APK package
+        id: package_apk
+        shell: bash
+        run: |
+          apk_path=$(find app/build/outputs/apk -name '*.apk' | head -n 1)
+          if [ -z "${apk_path}" ]; then
+            echo "No APK found after build"
+            exit 1
+          fi
+
+          short_sha="${GITHUB_SHA::7}"
+          version_code="${{ github.run_number }}"
+          build_mode="${{ github.event.inputs.build_mode }}"
+          if [ -z "${build_mode}" ]; then
+            build_mode="release"
+          fi
+
+          packaged_dir="${GITHUB_WORKSPACE}/packaged-apk"
+          mkdir -p "${packaged_dir}"
+          packaged_apk="${packaged_dir}/liuyi-trainer-${build_mode}-vc${version_code}-${short_sha}.apk"
+          cp "${apk_path}" "${packaged_apk}"
+
+          echo "apk_path=${packaged_apk}" >> "${GITHUB_OUTPUT}"
+          echo "apk_name=$(basename "${packaged_apk}")" >> "${GITHUB_OUTPUT}"
+
       - name: Verify APK mode
         if: steps.build_variant.outputs.expect_debuggable != ''
         shell: bash
         run: |
-          apk_path=$(find app/build/outputs/apk -name '*.apk' | head -n 1)
+          apk_path="${{ steps.package_apk.outputs.apk_path }}"
           if [ -z "${apk_path}" ]; then
             echo "No APK found for verification"
             exit 1
@@ -181,7 +206,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.build_variant.outputs.artifact_name }}
-          path: ${{ steps.build_variant.outputs.apk_glob }}
+          path: ${{ steps.package_apk.outputs.apk_path }}
           if-no-files-found: error
 
       - name: Publish APK to Releases
@@ -193,11 +218,15 @@ jobs:
           body: |
             ${{ steps.build_variant.outputs.release_body }}
 
+            构建编号：`${{ github.run_number }}`
+            提交：`${{ github.sha }}`
+            文件名：`${{ steps.package_apk.outputs.apk_name }}`
+
             仓库为公开状态时，可下载此处的 APK，不需要登录 GitHub。
           prerelease: true
           make_latest: false
           overwrite_files: true
-          files: ${{ steps.build_variant.outputs.apk_glob }}
+          files: ${{ steps.package_apk.outputs.apk_path }}
 
       - name: Upload build reports
         if: failure()

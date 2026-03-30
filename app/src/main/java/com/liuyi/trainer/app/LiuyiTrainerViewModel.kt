@@ -410,19 +410,7 @@ class LiuyiTrainerViewModel(
         var engine: TextToSpeech? = null
         engine = TextToSpeech(getApplication()) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val discoveredVoices = engine
-                    ?.voices
-                    .orEmpty()
-                    .filter { voice ->
-                        !voice.isNetworkConnectionRequired &&
-                            !voice.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-                    }
-                    .sortedWith(
-                        compareBy<Voice> { it.locale.toLanguageTag() }
-                            .thenBy { it.name },
-                    )
-                    .map { voice -> voice.toDeviceVoiceOption() }
-                    .let(::makeVoiceLabelsDistinct)
+                val discoveredVoices = buildVoiceOptions(engine?.voices.orEmpty())
 
                 availableVoices = listOf(defaultVoiceOption()) + discoveredVoices
                 if (availableVoices.none { it.id == selectedVoiceId }) {
@@ -453,32 +441,105 @@ private fun defaultVoiceOption(): DeviceVoiceOption = DeviceVoiceOption(
     label = "系统默认",
 )
 
-private fun Voice.toDeviceVoiceOption(): DeviceVoiceOption {
+private fun buildVoiceOptions(voices: Collection<Voice>): List<DeviceVoiceOption> {
+    val filteredVoices = voices.filter { voice ->
+        !voice.isNetworkConnectionRequired &&
+            !voice.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+    }
+    if (filteredVoices.isEmpty()) {
+        return emptyList()
+    }
+
+    val preferredLocale = Locale.getDefault()
+
+    return filteredVoices
+        .groupBy { voice -> voice.locale.toLanguageTag() }
+        .values
+        .mapNotNull { sameLocaleVoices ->
+            sameLocaleVoices
+                .maxWithOrNull(
+                    compareBy<Voice> { voice ->
+                        voiceSelectionScore(
+                            voice = voice,
+                            preferredLocale = preferredLocale,
+                        )
+                    }.thenByDescending { it.quality }
+                        .thenBy { -it.latency },
+                )
+                ?.toDeviceVoiceOptionForLocale()
+        }
+        .sortedWith(
+            compareByDescending<DeviceVoiceOption> { option ->
+                option.languageTag == preferredLocale.toLanguageTag()
+            }.thenByDescending { option ->
+                option.languageTag.substringBefore('-') == preferredLocale.language
+            }.thenByDescending { option ->
+                option.languageTag.substringBefore('-') == Locale.SIMPLIFIED_CHINESE.language
+            }.thenBy { option ->
+                option.label
+            },
+        )
+}
+
+private fun voiceSelectionScore(
+    voice: Voice,
+    preferredLocale: Locale,
+): Int {
+    val tag = voice.locale.toLanguageTag()
+    val language = tag.substringBefore('-')
+    var score = 0
+
+    if (tag == preferredLocale.toLanguageTag()) {
+        score += 400
+    }
+    if (language == preferredLocale.language) {
+        score += 200
+    }
+    if (language == Locale.SIMPLIFIED_CHINESE.language) {
+        score += 100
+    }
+    if (language == Locale.ENGLISH.language) {
+        score += 20
+    }
+
+    score += voice.quality
+    score -= voice.latency
+    return score
+}
+
+private fun Voice.toDeviceVoiceOptionForLocale(): DeviceVoiceOption {
+    val localeTag = locale.toLanguageTag()
     val localeLabel = locale.getDisplayName(Locale.SIMPLIFIED_CHINESE)
     val shortName = name
         .substringAfterLast('/')
         .substringAfterLast('#')
+        .substringAfterLast('.')
         .ifBlank { name }
+    val readableName = shortName.takeIf(::looksLikeHumanReadableVoiceName)
+    val label = readableName?.let { "$it · $localeLabel" } ?: localeLabel
 
     return DeviceVoiceOption(
         id = name,
-        label = "$shortName · $localeLabel",
+        label = label,
+        languageTag = localeTag,
     )
 }
 
-private fun makeVoiceLabelsDistinct(options: List<DeviceVoiceOption>): List<DeviceVoiceOption> {
-    val duplicates = options
-        .groupingBy { it.label }
-        .eachCount()
-        .filterValues { it > 1 }
-
-    return options.map { option ->
-        if (option.label in duplicates) {
-            option.copy(label = "${option.label} · ${option.id}")
-        } else {
-            option
-        }
+private fun looksLikeHumanReadableVoiceName(name: String): Boolean {
+    if (name.length <= 1) {
+        return false
     }
+    if (name.equals("default", ignoreCase = true)) {
+        return false
+    }
+    if (Regex("^[a-z]{2,3}([-_][A-Za-z0-9]{2,})+$").matches(name)) {
+        return false
+    }
+
+    val stripped = name.replace(Regex("[_\\-]"), "")
+    val hasLetters = stripped.any { it.isLetter() }
+    val hasOnlyLettersAndDigits = stripped.all { it.isLetterOrDigit() }
+    return hasLetters && !hasOnlyLettersAndDigits
 }
 
 private fun resolveExerciseContext(

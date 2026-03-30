@@ -29,6 +29,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -152,6 +154,7 @@ data class TrainingSettingsPreview(
     val voiceModeLabel: String,
     val availableVoices: List<DeviceVoiceOption>,
     val selectedVoiceId: String,
+    val selectedVoiceLabel: String,
     val restPresetSeconds: Int,
     val restPresetOptions: List<Int>,
     val preparationSeconds: Int,
@@ -616,7 +619,7 @@ fun TrainingSettingsScreen(
             SteelPanel(soft = true) {
                 SteelSectionHeader(
                     title = "语音人物",
-                    subtitle = if (preview.selectedVoiceId.isBlank()) "系统默认" else "已选择",
+                    subtitle = preview.selectedVoiceLabel,
                 )
                 VoicePersonSelector(
                     voices = preview.availableVoices,
@@ -969,13 +972,82 @@ private fun VoicePersonSelector(
         return
     }
 
+    val selectedLabel = voices.firstOrNull { it.id == selectedVoiceId }?.label ?: "系统默认"
+    var expanded by remember(selectedVoiceId, voices.size) {
+        mutableStateOf(false)
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        voices.forEach { voice ->
-            TogglePill(
-                modifier = Modifier.fillMaxWidth(),
-                selected = selectedVoiceId == voice.id,
-                text = voice.label,
-                onClick = { onSelect(voice.id) },
+        Box {
+            SelectorDropdownField(
+                value = selectedLabel,
+                onClick = { expanded = true },
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.94f),
+            ) {
+                voices.forEach { voice ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (selectedVoiceId == voice.id) "当前: ${voice.label}" else voice.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelect(voice.id)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectorDropdownField(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(18.dp),
+            )
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.24f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Text(
+                text = "展开",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -1552,6 +1624,7 @@ fun buildSettingsPreview(
     voiceModeLabel = if (speechEnabled) voiceGuideMode.labelZh() else "语音关闭",
     availableVoices = availableVoices,
     selectedVoiceId = selectedVoiceId,
+    selectedVoiceLabel = availableVoices.firstOrNull { it.id == selectedVoiceId }?.label ?: "系统默认",
     restPresetSeconds = restPresetSeconds,
     restPresetOptions = restPresetOptions,
     preparationSeconds = preparationSeconds,

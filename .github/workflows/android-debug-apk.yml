@@ -173,17 +173,21 @@ jobs:
 
           packaged_dir="${GITHUB_WORKSPACE}/packaged-apk"
           mkdir -p "${packaged_dir}"
-          packaged_apk="${packaged_dir}/liuyi-trainer-${build_mode}-vc${version_code}-${short_sha}.apk"
-          cp "${apk_path}" "${packaged_apk}"
+          artifact_apk="${packaged_dir}/liuyi-trainer-${build_mode}-vc${version_code}-${short_sha}.apk"
+          release_apk="${packaged_dir}/liuyi-trainer-${build_mode}-latest.apk"
+          cp "${apk_path}" "${artifact_apk}"
+          cp "${apk_path}" "${release_apk}"
 
-          echo "apk_path=${packaged_apk}" >> "${GITHUB_OUTPUT}"
-          echo "apk_name=$(basename "${packaged_apk}")" >> "${GITHUB_OUTPUT}"
+          echo "artifact_apk_path=${artifact_apk}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_apk_name=$(basename "${artifact_apk}")" >> "${GITHUB_OUTPUT}"
+          echo "release_apk_path=${release_apk}" >> "${GITHUB_OUTPUT}"
+          echo "release_apk_name=$(basename "${release_apk}")" >> "${GITHUB_OUTPUT}"
 
       - name: Verify APK mode
         if: steps.build_variant.outputs.expect_debuggable != ''
         shell: bash
         run: |
-          apk_path="${{ steps.package_apk.outputs.apk_path }}"
+          apk_path="${{ steps.package_apk.outputs.release_apk_path }}"
           if [ -z "${apk_path}" ]; then
             echo "No APK found for verification"
             exit 1
@@ -206,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.build_variant.outputs.artifact_name }}
-          path: ${{ steps.package_apk.outputs.apk_path }}
+          path: ${{ steps.package_apk.outputs.artifact_apk_path }}
           if-no-files-found: error
 
       - name: Publish APK to Releases
@@ -220,13 +224,13 @@ jobs:
 
             构建编号：`${{ github.run_number }}`
             提交：`${{ github.sha }}`
-            文件名：`${{ steps.package_apk.outputs.apk_name }}`
+            文件名：`${{ steps.package_apk.outputs.release_apk_name }}`
 
             仓库为公开状态时，可下载此处的 APK，不需要登录 GitHub。
           prerelease: true
           make_latest: false
           overwrite_files: true
-          files: ${{ steps.package_apk.outputs.apk_path }}
+          files: ${{ steps.package_apk.outputs.release_apk_path }}
 
       - name: Upload build reports
         if: failure()

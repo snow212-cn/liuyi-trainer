@@ -442,17 +442,20 @@ private fun defaultVoiceOption(): DeviceVoiceOption = DeviceVoiceOption(
 )
 
 private fun buildVoiceOptions(voices: Collection<Voice>): List<DeviceVoiceOption> {
-    val filteredVoices = voices.filter { voice ->
-        !voice.isNetworkConnectionRequired &&
-            !voice.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-    }
-    if (filteredVoices.isEmpty()) {
+    val usableVoices = voices.filter(::isUsableVoice)
+    if (usableVoices.isEmpty()) {
         return emptyList()
     }
 
     val preferredLocale = Locale.getDefault()
+    val localVoices = usableVoices
+        .filter(::supportsEmbeddedSynthesis)
+        .ifEmpty { usableVoices }
+    val prioritizedVoices = localVoices
+        .filter { voice -> isRelevantTrainingVoice(voice.locale, preferredLocale) }
+        .ifEmpty { localVoices }
 
-    return filteredVoices
+    return prioritizedVoices
         .groupBy { voice -> voice.locale.toLanguageTag() }
         .values
         .mapNotNull { sameLocaleVoices ->
@@ -466,10 +469,13 @@ private fun buildVoiceOptions(voices: Collection<Voice>): List<DeviceVoiceOption
                     }.thenByDescending { it.quality }
                         .thenBy { -it.latency },
                 )
-                ?.toDeviceVoiceOptionForLocale()
+                ?.toDeviceVoiceOptionForLocale(preferredLocale)
         }
+        .distinctBy { option -> option.label }
         .sortedWith(
             compareByDescending<DeviceVoiceOption> { option ->
+                option.isRecommended
+            }.thenByDescending { option ->
                 option.languageTag == preferredLocale.toLanguageTag()
             }.thenByDescending { option ->
                 option.languageTag.substringBefore('-') == preferredLocale.language
@@ -479,6 +485,27 @@ private fun buildVoiceOptions(voices: Collection<Voice>): List<DeviceVoiceOption
                 option.label
             },
         )
+}
+
+private fun isUsableVoice(voice: Voice): Boolean {
+    val features = voice.features.orEmpty()
+    return !voice.isNetworkConnectionRequired &&
+        !features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+}
+
+private fun supportsEmbeddedSynthesis(voice: Voice): Boolean {
+    val features = voice.features.orEmpty()
+    return features.isEmpty() || features.contains(TextToSpeech.Engine.KEY_FEATURE_EMBEDDED_SYNTHESIS)
+}
+
+private fun isRelevantTrainingVoice(
+    locale: Locale,
+    preferredLocale: Locale,
+): Boolean {
+    val language = locale.language
+    return locale.toLanguageTag() == preferredLocale.toLanguageTag() ||
+        language == preferredLocale.language ||
+        language == Locale.SIMPLIFIED_CHINESE.language
 }
 
 private fun voiceSelectionScore(
@@ -507,22 +534,49 @@ private fun voiceSelectionScore(
     return score
 }
 
-private fun Voice.toDeviceVoiceOptionForLocale(): DeviceVoiceOption {
+private fun Voice.toDeviceVoiceOptionForLocale(preferredLocale: Locale): DeviceVoiceOption {
     val localeTag = locale.toLanguageTag()
-    val localeLabel = locale.getDisplayName(Locale.SIMPLIFIED_CHINESE)
+    val localeLabel = locale.toReadableVoiceLocaleLabel()
     val shortName = name
         .substringAfterLast('/')
         .substringAfterLast('#')
         .substringAfterLast('.')
         .ifBlank { name }
     val readableName = shortName.takeIf(::looksLikeHumanReadableVoiceName)
-    val label = readableName?.let { "$it · $localeLabel" } ?: localeLabel
+    val label = readableName?.let { "$localeLabel · $it" } ?: localeLabel
 
     return DeviceVoiceOption(
         id = name,
         label = label,
         languageTag = localeTag,
+        isRecommended = isRelevantTrainingVoice(locale, preferredLocale),
     )
+}
+
+private fun Locale.toReadableVoiceLocaleLabel(): String {
+    if (language == Locale.SIMPLIFIED_CHINESE.language) {
+        val scriptLabel = when (script) {
+            "Hans" -> "简体"
+            "Hant" -> "繁体"
+            else -> null
+        }
+        val regionLabel = when (country.uppercase(Locale.ROOT)) {
+            "CN" -> "大陆"
+            "SG" -> "新加坡"
+            "TW" -> "台湾"
+            "HK" -> "香港"
+            "MO" -> "澳门"
+            else -> country.takeIf { it.isNotBlank() }?.let { getDisplayCountry(Locale.SIMPLIFIED_CHINESE) }
+        }
+        return listOfNotNull("中文", scriptLabel, regionLabel)
+            .distinct()
+            .joinToString("·")
+            .ifBlank { "中文" }
+    }
+
+    val languageLabel = getDisplayLanguage(Locale.SIMPLIFIED_CHINESE).ifBlank { getDisplayLanguage(this) }
+    val regionLabel = getDisplayCountry(Locale.SIMPLIFIED_CHINESE).takeIf { it.isNotBlank() }
+    return listOfNotNull(languageLabel, regionLabel).joinToString("·")
 }
 
 private fun looksLikeHumanReadableVoiceName(name: String): Boolean {

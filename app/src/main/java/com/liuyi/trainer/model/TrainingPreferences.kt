@@ -10,4 +10,5 @@ data class DeviceVoiceOption(
     val id: String,
     val label: String,
     val languageTag: String = "",
+    val isRecommended: Boolean = false,
 )

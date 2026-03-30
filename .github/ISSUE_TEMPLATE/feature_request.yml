@@ -1,0 +1,25 @@
+name: Feature Request
+description: Propose a focused improvement for training flow, data, or release process.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem or workflow gap does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the smallest useful change.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope And Risks
+      description: Mention affected screens, data, docs, or build process.

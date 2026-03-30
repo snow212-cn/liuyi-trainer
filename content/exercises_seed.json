@@ -1,7 +1,7 @@
 {
   "catalogVersion": 2,
   "contentStatus": "draft",
-  "notice": "当前已按 EPUB 补齐六艺十式正式名称，并保留开发预览节奏。动作标准正文、示意图与最终素材仍待正式接入。",
+  "notice": "当前已按 EPUB 补齐六艺十式正式名称，并保留开发预览节奏。动作标准正文、示意图与构建所需素材纳入当前项目基线。",
   "cadenceProfiles": [
     {
       "id": "preview_default",

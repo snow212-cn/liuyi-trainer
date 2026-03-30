@@ -1,0 +1,30 @@
+name: Bug Report
+description: Report a reproducible bug in the app, prototype, or build workflow.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the problem and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps To Reproduce
+      description: Provide the smallest reproducible path.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Device, Android version, branch, commit, or workflow run link.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra Notes
+      description: Logs, screenshots, or anything that narrows the issue.

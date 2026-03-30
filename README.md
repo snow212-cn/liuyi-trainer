@@ -1,96 +1,83 @@
 # Liuyi Trainer
 
-面向 Android 手机的本地训练助手，服务于“六艺十式”体系化练习。项目目标不是简单计时器，而是把训练节奏、组数记录、本次训练归档、动作标准内容浏览放进一个长期可维护的软件工程体系中。
+面向 Android 手机的本地训练助手，聚焦六类自重训练动作的节奏引导、训练记录与离线使用体验。项目目标不是做一个单纯计时器，而是把训练流程、历史归档、设置管理和后续内容扩展收敛成一个可长期维护的原生 Android 工程。
 
-## 本轮已完成
+## 项目状态
 
-- 建立 Git 仓库与 Android 工程骨架。
-- 定义首版需求规格、架构、数据模型、迭代路线。
-- 落下六艺十式内容模型的种子文件。
-- 补入原型阶段可复用的训练计次规则。
+- 当前阶段：公开预览 / Pre-release
+- 目标平台：Android
+- 技术栈：Kotlin、Jetpack Compose、Room、DataStore
+- 交付策略：轻量原型验证 + Android 正式实现 + GitHub Actions 远程构建 APK
 
-## 当前约束
+仓库现在以公开协作和后续发布为目标维护：
 
-- 当前机器缺少 Android SDK 与本地 Gradle 安装，因此不适合把“本机构建 APK”作为近期主路径。
-- “动作标准”“示意图”“书中原文节奏说明”涉及版权与来源问题，当前仓库只保留结构与占位，不内置受保护书籍内容。
-- 用户不希望安装 Chrome，也没有 Android 开发基础，因此测试策略必须避开 Chrome 和本机 Android 开发环境依赖。
+- `main` 用于公开展示与稳定发布
+- `develop` 用于持续开发与日常集成
 
-## 技术方向
+## 当前能力
 
-- 原生 Android
-- Kotlin
-- Jetpack Compose
-- Room
-- DataStore
-- 离线优先，本地存储
+- 六艺十式的动作族与等级结构
+- 训练准备、执行、组间休息、总结、历史等核心页面
+- 固定节奏引导与语音提示
+- 本地训练历史保存、导出与导入
+- 轻量 HTML 原型，用于快速验证流程和界面方向
 
-## 当前交付策略
+## 内容策略
 
-项目目标仍然是 Android 手机上的可用软件，但交付路径调整为两阶段：
+按当前项目基线，仓库会保留构建 APK 所需的训练正文、插图与动作结构内容。
 
-1. 先用轻量原型验证训练逻辑与页面流程。
-2. 再通过远程构建或最小化 Android 环境产出 APK。
+- 当前内容来源于项目已采用的公开传播电子书整理材料
+- 动作标准页会直接使用这些内容参与构建与展示
+- 后续若继续扩展素材，请同步保留来源说明与分发边界记录
 
-这样做的原因：
+内容来源登记入口见 `docs/process/content-sources.md`。
 
-- 不要求你现在安装 Android Studio。
-- 不要求你安装 Chrome。
-- 可以先把“功能是否符合你的意思”验证清楚。
-- 避免在错误方向上投入大量 Android 工程成本。
+## 快速开始
 
-## 目录
+如果你只想快速了解项目：
 
-- `docs/product/srs.md`：需求规格说明
-- `docs/architecture/architecture.md`：架构说明
-- `docs/architecture/data-model.md`：数据模型与计次规则
-- `docs/learning/project-foundations-textbook.md`：新手教材，系统讲解写这个项目要用到的基础知识
-- `docs/roadmap/milestones.md`：迭代计划
-- `docs/process/working-rhythm.md`：长期协作方式
-- `docs/process/testing-strategy.md`：测试与验证策略
-- `docs/architecture/adr-001-lightweight-delivery.md`：轻量交付架构决策
-- `content/exercises_seed.json`：六艺十式内容种子
-- `app/`：Android 应用骨架
-- `prototype/`：轻量可视化原型
+1. 阅读 `docs/process/start-here.md`
+2. 双击 `OPEN_DEMO.bat` 打开本地原型
+3. 双击 `OPEN_UI_REDESIGN.bat` 查看当前 UI 方向
 
-## 后续建议启动顺序
+如果你要参与代码开发：
 
-1. 先把训练引擎状态机与记录规则在轻量原型中做扎实。
-2. 再把同样的规则收敛到可构建的 Android 应用层。
-3. 通过远程构建产出首个可安装 APK。
-4. 最后接入动作标准内容页与素材资产流程。
+1. 安装 JDK 17
+2. 安装 Android SDK 36 对应命令行组件
+3. 运行 `./gradlew assembleDebug`
 
-## 本地构建前置
+如果你不打算在本机搭 Android 环境，可以直接使用 GitHub Actions 远程构建 APK。
 
-原生 Android 本地构建不是当前主路径。等功能原型稳定后，再二选一：
+## 仓库结构
 
-1. 远程 CI 构建 APK。
-2. 只安装最小 Android Command-line Tools，本机构建 APK。
+- `app/`：Android 应用源码
+- `content/`：动作结构与种子数据
+- `prototype/`：轻量原型
+- `docs/architecture/`：架构与数据设计
+- `docs/product/`：需求与体验设计文档
+- `docs/process/`：协作、测试、发布与流程文档
+- `.github/workflows/`：CI/CD 工作流
 
-当前你只需要能打开：
+## 公开发布建议
 
-- `OPEN_DEMO.bat`
-- `prototype/index.html`
-- `docs/process/start-here.md`
-- `docs/learning/project-foundations-textbook.md`
+建议先阅读 `docs/process/repository-release.md`。这个文档说明了：
 
-## APK 签名与升级
+- 为什么开发态历史不应该直接当作公开主分支
+- 如何整理 `main` / `develop` 分工
+- 如何在公开前清理不适合公开分发的历史内容
 
-远程工作流现在支持两种产物：
+## 贡献
 
-- 配置固定 keystore 后，CI 产出稳定签名的 `release` APK，可覆盖安装同包名应用。新建一把长期保存的发布 keystore 以后所有正式 APK 都用它签名，不能再丢。可以生成：
-    ```powershell
-    keytool -genkeypair -v -keystore release-keystore.jks -alias
-    ```
+欢迎提 issue 和 pull request。提交前请先阅读 `CONTRIBUTING.md`，尤其注意：
 
-- 未配置 keystore 时，CI 只产出 `debug` APK，并使用独立包名 `com.liuyi.trainer.debug`，避免与正式安装包签名冲突。
+- 保持内容来源说明清晰，不要提交来源不明的替换素材
+- 优先提交可复现的问题、最小改动和必要测试说明
+- 涉及公开发布流程时，遵守 `main` / `develop` 分支约定
 
-要让 GitHub Actions 一直产出可覆盖安装的 APK，需要在仓库 `Secrets and variables > Actions` 中配置 secret 和对应的值：
+## 安全
 
-- `ANDROID_KEYSTORE_BASE64`: `release-keystore.base64.txt` 里的整串内容
-- `ANDROID_KEYSTORE_PASSWORD`: 生成 keystore 时输入的 store password
-- `ANDROID_KEY_ALIAS`: 创建 keystore 时用的 alias
-- `ANDROID_KEY_PASSWORD`: 该 alias 对应的 key password
+如发现会影响用户数据、APK 分发或签名流程的安全问题，请先阅读 `SECURITY.md`，不要直接公开披露细节。
 
-其中关键的是：后续用于发布的 keystore 必须和手机里已安装那一版 APK 的签名私钥相同。若当前安装包的私钥已经丢失，Android 不允许无损覆盖安装，只能先备份应用数据，再卸载重装。
+## 许可证
 
-若需要做一次性数据迁移，请在 GitHub Actions 页面手动运行工作流，并把 `build_mode` 选择为 `migration`。CI 会产出独立的 `migration` APK：它仍使用正式签名，但会显式开启 `debuggable`，且工作流会在发布前校验 manifest 中确实存在 `android:debuggable`。日常 push 默认产出稳定 `release`；若缺少签名 secrets，则回退为 `debug`。迁移完成后，再手动运行一次并把 `build_mode` 选回 `release`。
+仓库在正式公开前需要补充明确许可证；在许可证文件落定前，代码虽然可见，但还不应被视为“完成开源许可声明”的发布状态。

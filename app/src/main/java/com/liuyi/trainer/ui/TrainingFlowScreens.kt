@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.horizontalScroll
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,6 +31,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,6 +50,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -80,12 +84,16 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private val UiTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("M月d日 HH:mm").withZone(ZoneId.systemDefault())
 
 private val UiClockFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
+
+private val UiMonthFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy年M月").withZone(ZoneId.systemDefault())
 
 data class ExerciseContext(
     val family: MovementFamily,
@@ -183,10 +191,13 @@ data class TrainingSettingsPreview(
 
 data class HistoryRowPreview(
     val sessionId: Long,
+    val familyLabel: String,
+    val stepLabel: String,
     val title: String,
     val totalRepsLabel: String,
     val setCountLabel: String,
     val setPreview: String,
+    val monthLabel: String,
     val dateLabel: String,
 )
 
@@ -781,6 +792,28 @@ fun TrainingHistoryScreen(
     val context = LocalContext.current
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var showBackupDialog by remember { mutableStateOf(false) }
+    val familyOptions = remember(preview.rows) {
+        listOf("全部六艺") + preview.rows.map { it.familyLabel }.distinct()
+    }
+    var selectedFamily by remember(preview.rows) { mutableStateOf(familyOptions.first()) }
+    val stepOptions = remember(preview.rows, selectedFamily) {
+        listOf("全部动作") + preview.rows
+            .filter { selectedFamily == "全部六艺" || it.familyLabel == selectedFamily }
+            .map { it.stepLabel }
+            .distinct()
+    }
+    val monthOptions = remember(preview.rows) {
+        listOf("全部月份") + preview.rows.map { it.monthLabel }.distinct()
+    }
+    var selectedStep by remember(preview.rows, selectedFamily) { mutableStateOf(stepOptions.first()) }
+    var selectedMonth by remember(preview.rows) { mutableStateOf(monthOptions.first()) }
+    val filteredRows = remember(preview.rows, selectedFamily, selectedStep, selectedMonth) {
+        preview.rows.filter { row ->
+            (selectedFamily == "全部六艺" || row.familyLabel == selectedFamily) &&
+                (selectedStep == "全部动作" || row.stepLabel == selectedStep) &&
+                (selectedMonth == "全部月份" || row.monthLabel == selectedMonth)
+        }
+    }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -836,14 +869,33 @@ fun TrainingHistoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical)),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
                 HistoryTopBar(
                     onBack = onBack,
                     onOpenBackup = { showBackupDialog = true },
                 )
+            }
+
+            if (preview.rows.isNotEmpty()) {
+                item {
+                    HistoryFilterBar(
+                        familyOptions = familyOptions,
+                        selectedFamily = selectedFamily,
+                        onSelectFamily = {
+                            selectedFamily = it
+                            selectedStep = "全部动作"
+                        },
+                        stepOptions = stepOptions,
+                        selectedStep = selectedStep,
+                        onSelectStep = { selectedStep = it },
+                        monthOptions = monthOptions,
+                        selectedMonth = selectedMonth,
+                        onSelectMonth = { selectedMonth = it },
+                    )
+                }
             }
 
             preview.transferStatus?.let { status ->
@@ -864,13 +916,32 @@ fun TrainingHistoryScreen(
                         MutedBody(text = "完成一次训练并保存后，就会在这里看到可点击记录。")
                     }
                 }
-            } else {
-                items(preview.rows, key = { it.sessionId }) { row ->
-                    HistoryListCard(
-                        preview = row,
-                        onClick = { onOpenDetail(row.sessionId) },
-                    )
+            } else if (filteredRows.isEmpty()) {
+                item {
+                    SteelPanel {
+                        SectionKicker(text = "没有匹配结果")
+                        Text(
+                            text = "当前筛选下没有记录",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        MutedBody(text = "换一个六艺或月份试试。")
+                    }
                 }
+            } else {
+                filteredRows
+                    .groupBy { it.monthLabel }
+                    .forEach { (monthLabel, rows) ->
+                        item(key = "month-$monthLabel") {
+                            HistoryMonthDivider(label = monthLabel)
+                        }
+                        items(rows, key = { it.sessionId }) { row ->
+                            HistoryListCard(
+                                preview = row,
+                                onClick = { onOpenDetail(row.sessionId) },
+                            )
+                        }
+                    }
             }
 
             item {
@@ -983,7 +1054,7 @@ private fun HistoryTopBar(
     ) {
         Text(
             text = "训练历史",
-            style = MaterialTheme.typography.displaySmall,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1570,15 +1641,194 @@ private fun SummarySetEditor(
 private fun StandardsIllustrationGallery(
     illustrations: List<StandardsIllustrationPreview>,
 ) {
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { illustrations.size },
+    )
+    val coroutineScope = rememberCoroutineScope()
+
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        illustrations.forEachIndexed { index, illustration ->
-            StandardsIllustrationItem(illustration = illustration)
-            if (index != illustrations.lastIndex) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth(),
+        ) { page ->
+            StandardsIllustrationItem(illustration = illustrations[page])
+        }
+
+        if (illustrations.size > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${illustrations.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    illustrations.forEachIndexed { index, _ ->
+                        Box(
+                            modifier = Modifier
+                                .width(if (index == pagerState.currentPage) 20.dp else 10.dp)
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(
+                                    if (index == pagerState.currentPage) {
+                                        MaterialTheme.colorScheme.secondary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
+                                    },
+                                )
+                                .clickable {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                },
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun HistoryFilterBar(
+    familyOptions: List<String>,
+    selectedFamily: String,
+    onSelectFamily: (String) -> Unit,
+    stepOptions: List<String>,
+    selectedStep: String,
+    onSelectStep: (String) -> Unit,
+    monthOptions: List<String>,
+    selectedMonth: String,
+    onSelectMonth: (String) -> Unit,
+) {
+    SteelPanel(soft = true) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FilterChipRow(
+                title = "六艺筛选",
+                options = familyOptions,
+                selected = selectedFamily,
+                onSelect = onSelectFamily,
+            )
+            FilterChipRow(
+                title = "动作筛选",
+                options = stepOptions,
+                selected = selectedStep,
+                onSelect = onSelectStep,
+            )
+            FilterChipRow(
+                title = "月份筛选",
+                options = monthOptions,
+                selected = selectedMonth,
+                onSelect = onSelectMonth,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterChipRow(
+    title: String,
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { option ->
+                FilterChip(
+                    text = option,
+                    selected = option == selected,
+                    onClick = { onSelect(option) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.42f)
+                },
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+                },
+                shape = RoundedCornerShape(999.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun HistoryMonthDivider(
+    label: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            fontWeight = FontWeight.Bold,
+        )
+        HorizontalDivider(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 10.dp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+        )
     }
 }
 
@@ -1733,15 +1983,15 @@ private fun HistoryListCard(
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        MaterialTheme.colorScheme.surfaceVariant,
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
                         MaterialTheme.colorScheme.surface,
                     ),
                 ),
             )
             .clickable(onClick = onClick)
-            .padding(16.dp),
+            .padding(horizontal = 12.dp, vertical = 11.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1749,25 +1999,27 @@ private fun HistoryListCard(
             ) {
                 Text(
                     text = preview.title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = preview.totalRepsLabel,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
+                    text = preview.dateLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
                     textAlign = TextAlign.End,
                 )
             }
+
             HistorySetBand(
-                setCountLabel = preview.setCountLabel,
                 setPreview = preview.setPreview,
             )
+
             Text(
-                text = preview.dateLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "${preview.setCountLabel} · 总${preview.totalRepsLabel}次",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary,
             )
         }
     }
@@ -1775,33 +2027,20 @@ private fun HistoryListCard(
 
 @Composable
 private fun HistorySetBand(
-    setCountLabel: String,
     setPreview: String,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.36f))
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.42f))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = setCountLabel,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-            Text(
-                text = setPreview,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.End,
-            )
-        }
+        Text(
+            text = setPreview,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -2185,6 +2424,8 @@ fun buildHistoryPreview(
         val step = family?.steps?.firstOrNull { it.level == sessionWithSets.session.stepLevel }
         HistoryRowPreview(
             sessionId = sessionWithSets.session.sessionId,
+            familyLabel = family?.titleZh ?: sessionWithSets.session.familyId,
+            stepLabel = step?.label ?: "第${sessionWithSets.session.stepLevel}式",
             title = buildString {
                 append(family?.titleZh ?: sessionWithSets.session.familyId)
                 append("·")
@@ -2196,7 +2437,12 @@ fun buildHistoryPreview(
                 .sortedBy { it.setIndex }
                 .joinToString(separator = " + ") { set -> set.completedRepCount.toString() }
                 .ifBlank { "暂无分组明细" },
-            dateLabel = UiTimeFormatter.format(Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)),
+            monthLabel = UiMonthFormatter.format(
+                Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs),
+            ),
+            dateLabel = UiTimeFormatter.format(
+                Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs),
+            ),
         )
     },
     transferStatus = transferStatus,

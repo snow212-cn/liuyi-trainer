@@ -64,7 +64,8 @@ android {
 
         release {
             isDebuggable = false
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -77,6 +78,8 @@ android {
         create("migration") {
             initWith(getByName("release"))
             isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             versionNameSuffix = "-migration"
             matchingFallbacks += listOf("release")
             if (hasStableSigning) {

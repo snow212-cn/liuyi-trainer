@@ -13,8 +13,12 @@ kapt {
 fun Project.optionalBuildValue(name: String): String? =
     providers.gradleProperty(name).orNull ?: providers.environmentVariable(name).orNull
 
-val configuredVersionCode = project.optionalBuildValue("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
-val configuredVersionName = project.optionalBuildValue("ANDROID_VERSION_NAME") ?: "0.1.0"
+val configuredVersionCode = project.optionalBuildValue("ANDROID_VERSION_CODE")?.toIntOrNull()
+    ?: project.optionalBuildValue("APP_VERSION_CODE")?.toIntOrNull()
+    ?: 1
+val configuredVersionName = project.optionalBuildValue("ANDROID_VERSION_NAME")
+    ?: project.optionalBuildValue("APP_VERSION_NAME")
+    ?: "0.1.0"
 
 val signingStoreFilePath = project.optionalBuildValue("ANDROID_SIGNING_STORE_FILE")
 val signingStorePassword = project.optionalBuildValue("ANDROID_SIGNING_STORE_PASSWORD")

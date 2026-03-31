@@ -80,6 +80,7 @@
 - 配置固定 keystore 后，CI 产出稳定签名的 `release` APK，可覆盖安装同包名应用。新建一把长期保存的发布 keystore 以后所有正式 APK 都用它签名，不能再丢。可以生成：
     ```powershell
     keytool -genkeypair -v -keystore release-keystore.jks -alias
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes("release-keystore.jks")) > release-keystore.base64.txt
     ```
 
 - 未配置 keystore 时，CI 只产出 `debug` APK，并使用独立包名 `com.liuyi.trainer.debug`，避免与正式安装包签名冲突。

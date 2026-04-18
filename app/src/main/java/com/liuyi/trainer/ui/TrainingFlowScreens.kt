@@ -28,12 +28,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.liuyi.trainer.data.TrainingSessionWithSets
@@ -1353,12 +1352,14 @@ private fun ImportHistoryConfirmDialog(
 
 @Composable
 private fun SelectorDropdownField(
+    modifier: Modifier = Modifier,
     label: String,
     value: String,
+    actionLabel: String = "展开",
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .border(
@@ -1388,7 +1389,7 @@ private fun SelectorDropdownField(
                 )
             }
             Text(
-                text = "展开",
+                text = actionLabel,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.Bold,
@@ -1711,98 +1712,140 @@ private fun HistoryFilterBar(
     selectedMonth: String,
     onSelectMonth: (String) -> Unit,
 ) {
-    SteelPanel(soft = true) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            FilterChipRow(
-                title = "六艺筛选",
-                options = familyOptions,
-                selected = selectedFamily,
-                onSelect = onSelectFamily,
-            )
-            FilterChipRow(
-                title = "动作筛选",
-                options = stepOptions,
-                selected = selectedStep,
-                onSelect = onSelectStep,
-            )
-            FilterChipRow(
-                title = "月份筛选",
-                options = monthOptions,
-                selected = selectedMonth,
-                onSelect = onSelectMonth,
-            )
-        }
-    }
-}
+    val defaultFamily = familyOptions.firstOrNull().orEmpty()
+    val defaultStep = stepOptions.firstOrNull().orEmpty()
+    val defaultMonth = monthOptions.firstOrNull().orEmpty()
+    val activeFilterCount = listOf(
+        selectedFamily != defaultFamily,
+        selectedStep != defaultStep,
+        selectedMonth != defaultMonth,
+    ).count { it }
+    val summaryLine = buildList {
+        if (selectedFamily != defaultFamily) add("六艺: $selectedFamily")
+        if (selectedStep != defaultStep) add("动作: $selectedStep")
+        if (selectedMonth != defaultMonth) add("月份: $selectedMonth")
+    }.joinToString("  ·  ").ifBlank { "当前显示全部训练记录" }
+    var expanded by remember { mutableStateOf(false) }
 
-@Composable
-private fun FilterChipRow(
-    title: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            options.forEach { option ->
-                FilterChip(
-                    text = option,
-                    selected = option == selected,
-                    onClick = { onSelect(option) },
-                )
+    SteelPanel(soft = true) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SectionKicker(text = "筛选条件")
+                    Text(
+                        text = if (activeFilterCount == 0) "全部记录" else "已筛选 $activeFilterCount 项",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = summaryLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "收起" else "展开筛选")
+                }
+            }
+
+            if (expanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        HistoryDropdownSelector(
+                            modifier = Modifier.weight(1f),
+                            label = "六艺",
+                            options = familyOptions,
+                            selected = selectedFamily,
+                            onSelect = {
+                                onSelectFamily(it)
+                                onSelectStep(defaultStep)
+                            },
+                        )
+                        HistoryDropdownSelector(
+                            modifier = Modifier.weight(1f),
+                            label = "月份",
+                            options = monthOptions,
+                            selected = selectedMonth,
+                            onSelect = onSelectMonth,
+                        )
+                    }
+                    HistoryDropdownSelector(
+                        label = "动作",
+                        options = stepOptions,
+                        selected = selectedStep,
+                        onSelect = onSelectStep,
+                    )
+                    if (activeFilterCount > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    onSelectFamily(defaultFamily)
+                                    onSelectStep(defaultStep)
+                                    onSelectMonth(defaultMonth)
+                                },
+                            ) {
+                                Text("清空筛选")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FilterChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
+private fun HistoryDropdownSelector(
+    modifier: Modifier = Modifier,
+    label: String,
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(
-                if (selected) {
-                    MaterialTheme.colorScheme.secondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.42f)
-                },
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
-                },
-                shape = RoundedCornerShape(999.dp),
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+    var expanded by remember(selected, options.size) { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        SelectorDropdownField(
+            label = label,
+            value = selected,
+            actionLabel = "选择",
+            onClick = { expanded = true },
         )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.94f),
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = if (selected == option) "当前: $option" else option,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(option)
+                    },
+                )
+            }
+        }
     }
 }
 

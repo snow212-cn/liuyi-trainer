@@ -192,7 +192,7 @@ jobs:
           ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew ${{ steps.build_variant.outputs.gradle_task }} --build-cache --no-configuration-cache --stacktrace -PANDROID_VERSION_CODE=${{ steps.build_variant.outputs.version_code }} -PANDROID_VERSION_NAME=${{ steps.build_variant.outputs.version_name }}
+        run: ./gradlew ${{ steps.build_variant.outputs.gradle_task }} --build-cache --stacktrace -PANDROID_VERSION_CODE=${{ steps.build_variant.outputs.version_code }} -PANDROID_VERSION_NAME=${{ steps.build_variant.outputs.version_name }}
 
       - name: Prepare APK package
         id: package_apk

@@ -10,3 +10,5 @@ captures/
 *.jks
 backup/
 tools/
+audio_whistle_final/
+audio_whistle_original/

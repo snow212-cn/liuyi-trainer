@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +84,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val UiTimeFormatter: DateTimeFormatter =
@@ -93,6 +95,8 @@ private val UiClockFormatter: DateTimeFormatter =
 
 private val UiMonthFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy年M月").withZone(ZoneId.systemDefault())
+
+private const val WhistleSpeechGapMs = 120L
 
 data class ExerciseContext(
     val family: MovementFamily,
@@ -113,6 +117,7 @@ data class PreparingPreview(
     val totalRepCount: Int,
     val countdownLabel: String,
     val hintLabel: String,
+    val speechSequenceId: String,
     val speechCueKey: String?,
     val speechCueText: String?,
 )
@@ -123,6 +128,8 @@ data class RunningPreview(
     val phaseSecondLabel: String,
     val phaseCueText: String,
     val activeBeatIndex: Int,
+    val speechSequenceId: String,
+    val whistleCueKey: String?,
     val speechCueKey: String?,
     val speechCueText: String?,
     val currentRepCount: Int,
@@ -140,6 +147,8 @@ data class RestPreview(
     val restTimeLabel: String,
     val restHint: String,
     val presetLabel: String,
+    val speechSequenceId: String,
+    val whistleCueKey: String?,
     val speechCueKey: String?,
     val speechCueText: String?,
 )
@@ -186,6 +195,10 @@ data class TrainingSettingsPreview(
     val preparationSeconds: Int,
     val preparationOptions: List<Int>,
     val restCountdownVoiceEnabled: Boolean,
+    val backgroundMusicEnabled: Boolean,
+    val backgroundMusicOptions: List<TrainingBackgroundMusicOption>,
+    val selectedBackgroundMusicId: String,
+    val selectedBackgroundMusicLabel: String,
 )
 
 data class HistoryRowPreview(
@@ -293,13 +306,18 @@ fun TrainingPreparationScreen(
     preview: PreparingPreview,
     speechEnabled: Boolean,
     selectedVoiceId: String,
+    lastSpokenCueToken: String?,
+    onSpeechCueSpoken: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     SpeechCueEffect(
         enabled = speechEnabled,
+        sequenceId = preview.speechSequenceId,
         cueKey = preview.speechCueKey,
         cueText = preview.speechCueText,
         selectedVoiceId = selectedVoiceId,
+        lastSpokenCueToken = lastSpokenCueToken,
+        onCueSpoken = onSpeechCueSpoken,
     )
 
     PrisonSurface {
@@ -376,15 +394,32 @@ fun TrainingPreparationScreen(
 fun TrainingRunningScreen(
     preview: RunningPreview,
     selectedVoiceId: String,
+    lastSpokenCueToken: String?,
+    onSpeechCueSpoken: (String) -> Unit,
+    lastPlayedWhistleCueToken: String?,
+    lastPlayedWhistleCompletedAtMs: Long,
+    onWhistleCuePlayed: (String) -> Unit,
     onBack: () -> Unit,
     onFinishSet: () -> Unit,
     onCompleteTraining: () -> Unit,
 ) {
+    WhistleCueEffect(
+        sequenceId = preview.speechSequenceId,
+        cueKey = preview.whistleCueKey,
+        lastPlayedCueToken = lastPlayedWhistleCueToken,
+        onCuePlayed = onWhistleCuePlayed,
+    )
     SpeechCueEffect(
         enabled = preview.speechCueText != null,
+        sequenceId = preview.speechSequenceId,
         cueKey = preview.speechCueKey,
         cueText = preview.speechCueText,
         selectedVoiceId = selectedVoiceId,
+        lastSpokenCueToken = lastSpokenCueToken,
+        onCueSpoken = onSpeechCueSpoken,
+        precedingAudioCueKey = preview.whistleCueKey,
+        lastCompletedPrecedingAudioCueToken = lastPlayedWhistleCueToken,
+        lastCompletedPrecedingAudioAtMs = lastPlayedWhistleCompletedAtMs,
     )
 
     PrisonSurface {
@@ -455,15 +490,32 @@ fun TrainingRestScreen(
     preview: RestPreview,
     speechEnabled: Boolean,
     selectedVoiceId: String,
+    lastSpokenCueToken: String?,
+    onSpeechCueSpoken: (String) -> Unit,
+    lastPlayedWhistleCueToken: String?,
+    lastPlayedWhistleCompletedAtMs: Long,
+    onWhistleCuePlayed: (String) -> Unit,
     onBack: () -> Unit,
     onStartNextSet: () -> Unit,
     onCompleteTraining: () -> Unit,
 ) {
+    WhistleCueEffect(
+        sequenceId = preview.speechSequenceId,
+        cueKey = preview.whistleCueKey,
+        lastPlayedCueToken = lastPlayedWhistleCueToken,
+        onCuePlayed = onWhistleCuePlayed,
+    )
     SpeechCueEffect(
         enabled = speechEnabled,
+        sequenceId = preview.speechSequenceId,
         cueKey = preview.speechCueKey,
         cueText = preview.speechCueText,
         selectedVoiceId = selectedVoiceId,
+        lastSpokenCueToken = lastSpokenCueToken,
+        onCueSpoken = onSpeechCueSpoken,
+        precedingAudioCueKey = preview.whistleCueKey,
+        lastCompletedPrecedingAudioCueToken = lastPlayedWhistleCueToken,
+        lastCompletedPrecedingAudioAtMs = lastPlayedWhistleCompletedAtMs,
     )
 
     PrisonSurface {
@@ -610,6 +662,8 @@ fun TrainingSettingsScreen(
     onUpdateRestPreset: (Int) -> Unit,
     onUpdatePreparationSeconds: (Int) -> Unit,
     onUpdateRestCountdownVoiceEnabled: (Boolean) -> Unit,
+    onUpdateBackgroundMusicEnabled: (Boolean) -> Unit,
+    onUpdateSelectedBackgroundMusic: (String) -> Unit,
 ) {
     PrisonSurface {
         PrisonScrollColumn {
@@ -625,6 +679,10 @@ fun TrainingSettingsScreen(
                 ReadySettingRow(label = "当前语音", value = preview.voiceModeLabel)
                 ReadySettingRow(label = "组间休息", value = "${preview.restPresetSeconds} 秒")
                 ReadySettingRow(label = "起组准备", value = "${preview.preparationSeconds} 秒")
+                ReadySettingRow(
+                    label = "背景音乐",
+                    value = if (preview.backgroundMusicEnabled) preview.selectedBackgroundMusicLabel else "关闭",
+                )
             }
 
             SteelPanel(soft = true) {
@@ -697,6 +755,24 @@ fun TrainingSettingsScreen(
                     enabledText = "最后 3 秒播报",
                     disabledText = "不播报",
                     onToggle = onUpdateRestCountdownVoiceEnabled,
+                )
+            }
+
+            SteelPanel(soft = true) {
+                SteelSectionHeader(
+                    title = "训练背景音乐",
+                    subtitle = if (preview.backgroundMusicEnabled) preview.selectedBackgroundMusicLabel else "已关闭",
+                )
+                BackgroundMusicSelector(
+                    options = preview.backgroundMusicOptions,
+                    selectedId = preview.selectedBackgroundMusicId,
+                    onSelect = onUpdateSelectedBackgroundMusic,
+                )
+                BooleanOptionRow(
+                    enabled = preview.backgroundMusicEnabled,
+                    enabledText = "背景音乐开启",
+                    disabledText = "背景音乐关闭",
+                    onToggle = onUpdateBackgroundMusicEnabled,
                 )
             }
 
@@ -1307,6 +1383,61 @@ private fun VoicePersonSelector(
                         onClick = {
                             expanded = false
                             onSelect(voice.id)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackgroundMusicSelector(
+    options: List<TrainingBackgroundMusicOption>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+) {
+    if (options.isEmpty()) {
+        MutedBody(text = "当前没有可用的背景音乐素材。")
+        return
+    }
+
+    val selectedLabel = options.firstOrNull { it.id == selectedId }?.label ?: options.first().label
+    var expanded by remember(selectedId, options.size) {
+        mutableStateOf(false)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box {
+            SelectorDropdownField(
+                label = "背景音乐曲目",
+                value = selectedLabel,
+                actionLabel = "选择",
+                onClick = { expanded = true },
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.94f),
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = if (selectedId == option.id) "当前: ${option.label}" else option.label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = option.summary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelect(option.id)
                         },
                     )
                 }
@@ -2167,14 +2298,26 @@ private fun DetailInlineMetaChip(
 @Composable
 private fun SpeechCueEffect(
     enabled: Boolean,
+    sequenceId: String,
     cueKey: String?,
     cueText: String?,
     selectedVoiceId: String = "",
+    lastSpokenCueToken: String?,
+    onCueSpoken: (String) -> Unit,
+    precedingAudioCueKey: String? = null,
+    lastCompletedPrecedingAudioCueToken: String? = null,
+    lastCompletedPrecedingAudioAtMs: Long = 0L,
 ) {
     val context = LocalContext.current
     var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
     var engineReady by remember { mutableStateOf(false) }
-    var lastSpokenKey by remember { mutableStateOf<String?>(null) }
+    val cueToken = remember(sequenceId, cueKey) {
+        cueKey?.let { "$sequenceId|$it" }
+    }
+    val precedingAudioCueToken = remember(sequenceId, precedingAudioCueKey) {
+        precedingAudioCueKey?.let { "$sequenceId|$it" }
+    }
+    val currentLastSpokenCueToken by rememberUpdatedState(lastSpokenCueToken)
 
     DisposableEffect(context) {
         val engine = TextToSpeech(context) { status ->
@@ -2209,20 +2352,41 @@ private fun SpeechCueEffect(
         }
     }
 
-    LaunchedEffect(enabled) {
-        if (!enabled) {
-            lastSpokenKey = null
-        }
-    }
-
-    LaunchedEffect(enabled, cueKey, cueText, textToSpeech, engineReady) {
-        if (!enabled || cueKey.isNullOrBlank() || cueText.isNullOrBlank() || !engineReady) {
+    LaunchedEffect(
+        enabled,
+        cueToken,
+        cueText,
+        textToSpeech,
+        engineReady,
+        lastSpokenCueToken,
+        precedingAudioCueToken,
+        lastCompletedPrecedingAudioCueToken,
+        lastCompletedPrecedingAudioAtMs,
+    ) {
+        if (!enabled || cueToken.isNullOrBlank() || cueText.isNullOrBlank() || !engineReady) {
             return@LaunchedEffect
         }
-        if (cueKey != lastSpokenKey) {
-            val speakResult = textToSpeech?.speak(cueText, TextToSpeech.QUEUE_FLUSH, null, cueKey)
+        if (!precedingAudioCueToken.isNullOrBlank() &&
+            precedingAudioCueToken != lastCompletedPrecedingAudioCueToken
+        ) {
+            textToSpeech?.stop()
+            return@LaunchedEffect
+        }
+        if (!precedingAudioCueToken.isNullOrBlank() &&
+            precedingAudioCueToken == lastCompletedPrecedingAudioCueToken
+        ) {
+            val elapsedSinceWhistleMs =
+                (android.os.SystemClock.elapsedRealtime() - lastCompletedPrecedingAudioAtMs)
+                    .coerceAtLeast(0L)
+            val remainingGapMs = (WhistleSpeechGapMs - elapsedSinceWhistleMs).coerceAtLeast(0L)
+            if (remainingGapMs > 0L) {
+                delay(remainingGapMs)
+            }
+        }
+        if (cueToken != currentLastSpokenCueToken) {
+            val speakResult = textToSpeech?.speak(cueText, TextToSpeech.QUEUE_FLUSH, null, cueToken)
             if (speakResult == TextToSpeech.SUCCESS) {
-                lastSpokenKey = cueKey
+                onCueSpoken(cueToken)
             }
         }
     }
@@ -2250,6 +2414,9 @@ fun buildSettingsPreview(
     preparationSeconds: Int,
     preparationOptions: List<Int>,
     restCountdownVoiceEnabled: Boolean,
+    backgroundMusicEnabled: Boolean,
+    backgroundMusicOptions: List<TrainingBackgroundMusicOption>,
+    selectedBackgroundMusicId: String,
 ): TrainingSettingsPreview = TrainingSettingsPreview(
     speechEnabled = speechEnabled,
     voiceGuideMode = voiceGuideMode,
@@ -2262,6 +2429,14 @@ fun buildSettingsPreview(
     preparationSeconds = preparationSeconds,
     preparationOptions = preparationOptions,
     restCountdownVoiceEnabled = restCountdownVoiceEnabled,
+    backgroundMusicEnabled = backgroundMusicEnabled,
+    backgroundMusicOptions = backgroundMusicOptions,
+    selectedBackgroundMusicId = selectedBackgroundMusicId,
+    selectedBackgroundMusicLabel = backgroundMusicOptions
+        .firstOrNull { it.id == selectedBackgroundMusicId }
+        ?.label
+        ?: backgroundMusicOptions.firstOrNull()?.label
+        ?: "未设置",
 )
 
 fun buildPreparingPreview(
@@ -2278,6 +2453,7 @@ fun buildPreparingPreview(
         totalRepCount = state.completedSets.sumOf { it.completedRepCount },
         countdownLabel = remainingSeconds.toString(),
         hintLabel = "就位后按 2-1-2 开始",
+        speechSequenceId = "prep-${state.prepareStartedAtUtc.toEpochMilli()}",
         speechCueKey = "prep-$remainingSeconds",
         speechCueText = remainingSeconds.toString(),
     )
@@ -2311,6 +2487,8 @@ fun buildRunningPreview(
             phaseSecond = phaseSecond,
         ),
         activeBeatIndex = progress.phase.activeBeatIndex(),
+        speechSequenceId = "run-${state.setStartedAtUtc.toEpochMilli()}",
+        whistleCueKey = "run-start-whistle",
         speechCueKey = speechCue?.first,
         speechCueText = speechCue?.second,
         currentRepCount = progress.completedRepCount,
@@ -2363,6 +2541,8 @@ fun buildRestPreview(
         restTimeLabel = if (snapshot.isOvertime) "+${formatStopwatch(snapshot.overtimeMs)}" else formatStopwatch(snapshot.remainingMs),
         restHint = if (snapshot.isOvertime) "已超出建议休息时长，继续显示正计时。" else "倒计时结束前可随时开始下一组。",
         presetLabel = "${restPreset.defaultRestSeconds} 秒",
+        speechSequenceId = "rest-${restStartedAtUtc.toEpochMilli()}",
+        whistleCueKey = if (snapshot.isOvertime) "rest-overtime-whistle" else null,
         speechCueKey = speechCue?.first,
         speechCueText = speechCue?.second,
     )
@@ -2591,11 +2771,7 @@ private fun shareHistoryBackup(
 
 private fun restSpeechCue(snapshot: com.liuyi.trainer.model.RestSnapshot): Pair<String, String>? {
     if (snapshot.isOvertime) {
-        return if (snapshot.overtimeMs < 1_000L) {
-            "rest-overtime" to "超时"
-        } else {
-            null
-        }
+        return "rest-overtime" to "超时"
     }
 
     val remainingSeconds = ((snapshot.remainingMs + 999L) / 1000L).toInt()

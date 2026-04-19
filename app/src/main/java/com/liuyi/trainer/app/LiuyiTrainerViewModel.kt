@@ -2,6 +2,7 @@ package com.liuyi.trainer.app
 
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import android.provider.OpenableColumns
@@ -25,8 +26,12 @@ import com.liuyi.trainer.model.prepareTrainingSession
 import com.liuyi.trainer.model.updatePreparingState
 import com.liuyi.trainer.model.updateRestState
 import com.liuyi.trainer.ui.ExerciseContext
+import com.liuyi.trainer.ui.TrainingBackgroundMusicOption
+import com.liuyi.trainer.ui.defaultTrainingBackgroundMusicOption
 import com.liuyi.trainer.ui.defaultExerciseContext
 import com.liuyi.trainer.ui.defaultRestPreset
+import com.liuyi.trainer.ui.findTrainingBackgroundMusicOption
+import com.liuyi.trainer.ui.trainingBackgroundMusicOptions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -81,6 +86,21 @@ class LiuyiTrainerViewModel(
     var restCountdownVoiceEnabled by mutableStateOf(true)
         private set
 
+    var backgroundMusicEnabled by mutableStateOf(true)
+        private set
+
+    var selectedBackgroundMusicId by mutableStateOf(defaultTrainingBackgroundMusicOption().id)
+        private set
+
+    var lastSpokenCueToken by mutableStateOf<String?>(null)
+        private set
+
+    var lastPlayedWhistleCueToken by mutableStateOf<String?>(null)
+        private set
+
+    var lastPlayedWhistleCompletedAtMs by mutableLongStateOf(0L)
+        private set
+
     var summaryRepDrafts by mutableStateOf<List<String>>(emptyList())
         private set
 
@@ -107,6 +127,7 @@ class LiuyiTrainerViewModel(
 
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
     val preparationOptions: List<Int> = listOf(3, 5, 8)
+    val backgroundMusicOptions: List<TrainingBackgroundMusicOption> = trainingBackgroundMusicOptions
 
     init {
         loadAvailableVoices()
@@ -157,6 +178,9 @@ class LiuyiTrainerViewModel(
 
     fun updateSpeechEnabled(enabled: Boolean) {
         speechEnabled = enabled
+        if (!enabled) {
+            clearSpeechCueTracking()
+        }
     }
 
     fun updateVoiceGuideMode(mode: VoiceGuideMode) {
@@ -173,6 +197,25 @@ class LiuyiTrainerViewModel(
 
     fun updateRestCountdownVoiceEnabled(enabled: Boolean) {
         restCountdownVoiceEnabled = enabled
+    }
+
+    fun updateBackgroundMusicEnabled(enabled: Boolean) {
+        backgroundMusicEnabled = enabled
+    }
+
+    fun updateSelectedBackgroundMusic(trackId: String) {
+        if (findTrainingBackgroundMusicOption(trackId) != null) {
+            selectedBackgroundMusicId = trackId
+        }
+    }
+
+    fun markSpeechCueSpoken(cueToken: String) {
+        lastSpokenCueToken = cueToken
+    }
+
+    fun markWhistleCuePlayed(cueToken: String) {
+        lastPlayedWhistleCueToken = cueToken
+        lastPlayedWhistleCompletedAtMs = SystemClock.elapsedRealtime()
     }
 
     fun selectHistorySession(sessionId: Long) {
@@ -488,6 +531,12 @@ class LiuyiTrainerViewModel(
         voiceProbe?.shutdown()
         voiceProbe = null
         super.onCleared()
+    }
+
+    private fun clearSpeechCueTracking() {
+        lastSpokenCueToken = null
+        lastPlayedWhistleCueToken = null
+        lastPlayedWhistleCompletedAtMs = 0L
     }
 
     private fun writeTextToUri(

@@ -1,14 +1,17 @@
 package com.liuyi.trainer.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.liuyi.trainer.model.ExerciseCatalog
 import com.liuyi.trainer.model.TrainingSessionState
 import com.liuyi.trainer.ui.HomeScreen
 import com.liuyi.trainer.ui.StandardsScreen
+import com.liuyi.trainer.ui.TrainingBackgroundMusicEffect
 import com.liuyi.trainer.ui.TrainingHistoryDetailScreen
 import com.liuyi.trainer.ui.TrainingHistoryScreen
 import com.liuyi.trainer.ui.TrainingPreparationScreen
@@ -26,6 +29,7 @@ import com.liuyi.trainer.ui.buildSettingsPreview
 import com.liuyi.trainer.ui.buildStandardsPreview
 import com.liuyi.trainer.ui.buildSummaryPreview
 import com.liuyi.trainer.ui.buildTrainingEntryPreview
+import com.liuyi.trainer.ui.findTrainingBackgroundMusicOption
 
 private object Routes {
     const val Home = "home"
@@ -45,6 +49,27 @@ fun LiuyiTrainerApp(
     val navController = rememberNavController()
     val activeContext = appViewModel.activeContext
     val activeRoute = routeForSessionState(appViewModel.sessionState)
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+    val selectedBackgroundMusic = findTrainingBackgroundMusicOption(appViewModel.selectedBackgroundMusicId)
+    val hasLiveTrainingStage = when (appViewModel.sessionState) {
+        is TrainingSessionState.PreparingSet,
+        is TrainingSessionState.SetRunning,
+        is TrainingSessionState.RestRunning,
+        is TrainingSessionState.RestOvertime -> true
+
+        else -> false
+    }
+    val shouldPlayTrainingMusic =
+        appViewModel.backgroundMusicEnabled &&
+            selectedBackgroundMusic != null &&
+            hasLiveTrainingStage &&
+            (currentRoute == Routes.Training || currentRoute == Routes.Rest)
+
+    TrainingBackgroundMusicEffect(
+        enabled = shouldPlayTrainingMusic,
+        trackResId = selectedBackgroundMusic?.rawResId,
+    )
 
     NavHost(
         navController = navController,
@@ -98,6 +123,8 @@ fun LiuyiTrainerApp(
                     ),
                     speechEnabled = appViewModel.speechEnabled,
                     selectedVoiceId = appViewModel.selectedVoiceId,
+                    lastSpokenCueToken = appViewModel.lastSpokenCueToken,
+                    onSpeechCueSpoken = appViewModel::markSpeechCueSpoken,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -112,6 +139,11 @@ fun LiuyiTrainerApp(
                         speechEnabled = appViewModel.speechEnabled,
                     ),
                     selectedVoiceId = appViewModel.selectedVoiceId,
+                    lastSpokenCueToken = appViewModel.lastSpokenCueToken,
+                    onSpeechCueSpoken = appViewModel::markSpeechCueSpoken,
+                    lastPlayedWhistleCueToken = appViewModel.lastPlayedWhistleCueToken,
+                    lastPlayedWhistleCompletedAtMs = appViewModel.lastPlayedWhistleCompletedAtMs,
+                    onWhistleCuePlayed = appViewModel::markWhistleCuePlayed,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -137,11 +169,6 @@ fun LiuyiTrainerApp(
                     },
                     onStartSet = {
                         appViewModel.beginTraining()
-                        navController.navigate(Routes.Training) {
-                            popUpTo(Routes.Training) {
-                                inclusive = true
-                            }
-                        }
                     },
                     onOpenStandards = {
                         navController.navigate(Routes.Standards)
@@ -165,6 +192,11 @@ fun LiuyiTrainerApp(
                     ),
                     speechEnabled = appViewModel.speechEnabled,
                     selectedVoiceId = appViewModel.selectedVoiceId,
+                    lastSpokenCueToken = appViewModel.lastSpokenCueToken,
+                    onSpeechCueSpoken = appViewModel::markSpeechCueSpoken,
+                    lastPlayedWhistleCueToken = appViewModel.lastPlayedWhistleCueToken,
+                    lastPlayedWhistleCompletedAtMs = appViewModel.lastPlayedWhistleCompletedAtMs,
+                    onWhistleCuePlayed = appViewModel::markWhistleCuePlayed,
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
                     },
@@ -219,6 +251,9 @@ fun LiuyiTrainerApp(
                     preparationSeconds = appViewModel.preparationSeconds,
                     preparationOptions = appViewModel.preparationOptions,
                     restCountdownVoiceEnabled = appViewModel.restCountdownVoiceEnabled,
+                    backgroundMusicEnabled = appViewModel.backgroundMusicEnabled,
+                    backgroundMusicOptions = appViewModel.backgroundMusicOptions,
+                    selectedBackgroundMusicId = appViewModel.selectedBackgroundMusicId,
                 ),
                 onBack = {
                     navController.popBackStack()
@@ -232,6 +267,8 @@ fun LiuyiTrainerApp(
                 onUpdateRestPreset = appViewModel::selectRestPreset,
                 onUpdatePreparationSeconds = appViewModel::updatePreparationSeconds,
                 onUpdateRestCountdownVoiceEnabled = appViewModel::updateRestCountdownVoiceEnabled,
+                onUpdateBackgroundMusicEnabled = appViewModel::updateBackgroundMusicEnabled,
+                onUpdateSelectedBackgroundMusic = appViewModel::updateSelectedBackgroundMusic,
             )
         }
 
@@ -319,10 +356,31 @@ private fun activeSessionHomeLabel(state: TrainingSessionState): String? = when 
 }
 
 private fun homeSettingsSummary(appViewModel: LiuyiTrainerViewModel): String =
-    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"}·${appViewModel.restPresetSeconds}秒休息"
+    buildList {
+        add(if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭")
+        add("${appViewModel.restPresetSeconds}秒休息")
+        add(
+            if (appViewModel.backgroundMusicEnabled) {
+                findTrainingBackgroundMusicOption(appViewModel.selectedBackgroundMusicId)?.label ?: "背景乐开启"
+            } else {
+                "背景乐关闭"
+            },
+        )
+    }.joinToString("·")
 
 private fun readySettingsSummary(appViewModel: LiuyiTrainerViewModel): String =
-    "${if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭"}·${appViewModel.restPresetSeconds}秒休息·${appViewModel.preparationSeconds}秒准备"
+    buildList {
+        add(if (appViewModel.speechEnabled) appViewModel.voiceGuideMode.labelZh() else "语音关闭")
+        add("${appViewModel.restPresetSeconds}秒休息")
+        add("${appViewModel.preparationSeconds}秒准备")
+        add(
+            if (appViewModel.backgroundMusicEnabled) {
+                findTrainingBackgroundMusicOption(appViewModel.selectedBackgroundMusicId)?.label ?: "背景乐开启"
+            } else {
+                "背景乐关闭"
+            },
+        )
+    }.joinToString("·")
 
 private fun com.liuyi.trainer.model.VoiceGuideMode.labelZh(): String = when (this) {
     com.liuyi.trainer.model.VoiceGuideMode.Command -> "起落停"

@@ -1,6 +1,7 @@
 package com.liuyi.trainer.app
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
 import android.speech.tts.TextToSpeech
@@ -44,16 +45,26 @@ import java.util.Locale
 class LiuyiTrainerViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
+    private val selectionPreferences =
+        application.getSharedPreferences(SELECTION_PREFS_NAME, Context.MODE_PRIVATE)
     private val defaultContext = defaultExerciseContext()
+    private val restoredSelectionContext = resolveExerciseContext(
+        familyId = selectionPreferences.getString(
+            KEY_SELECTED_FAMILY_ID,
+            defaultContext.family.id,
+        ) ?: defaultContext.family.id,
+        stepLevel = selectionPreferences.getInt(KEY_SELECTED_STEP_LEVEL, 1),
+        fallback = defaultContext,
+    )
     private var tickerJob: Job? = null
     private var voiceProbe: TextToSpeech? = null
     private val trainingHistoryRepository =
         (application as LiuyiTrainerApplication).trainingHistoryRepository
 
-    var selectedFamilyId by mutableStateOf(defaultContext.family.id)
+    var selectedFamilyId by mutableStateOf(restoredSelectionContext.family.id)
         private set
 
-    var selectedStepLevel by mutableIntStateOf(defaultContext.step.level)
+    var selectedStepLevel by mutableIntStateOf(restoredSelectionContext.step.level)
         private set
 
     var restPresetSeconds by mutableIntStateOf(defaultRestPreset().defaultRestSeconds)
@@ -125,6 +136,15 @@ class LiuyiTrainerViewModel(
     var latestHistoryExportLabel by mutableStateOf<String?>(null)
         private set
 
+    var customEccentricSeconds by mutableIntStateOf(2)
+        private set
+
+    var customBottomPauseSeconds by mutableIntStateOf(1)
+        private set
+
+    var customConcentricSeconds by mutableIntStateOf(2)
+        private set
+
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
     val preparationOptions: List<Int> = listOf(3, 5, 8)
     val backgroundMusicOptions: List<TrainingBackgroundMusicOption> = trainingBackgroundMusicOptions
@@ -166,10 +186,12 @@ class LiuyiTrainerViewModel(
     fun selectFamily(familyId: String) {
         selectedFamilyId = familyId
         selectedStepLevel = 1
+        persistSelection()
     }
 
     fun selectStep(stepLevel: Int) {
         selectedStepLevel = stepLevel
+        persistSelection()
     }
 
     fun selectRestPreset(seconds: Int) {
@@ -209,6 +231,18 @@ class LiuyiTrainerViewModel(
         }
     }
 
+    fun updateCustomEccentricSeconds(seconds: Int) {
+        customEccentricSeconds = seconds.coerceIn(0, 10)
+    }
+
+    fun updateCustomBottomPauseSeconds(seconds: Int) {
+        customBottomPauseSeconds = seconds.coerceIn(0, 10)
+    }
+
+    fun updateCustomConcentricSeconds(seconds: Int) {
+        customConcentricSeconds = seconds.coerceIn(0, 10)
+    }
+
     fun markSpeechCueSpoken(cueToken: String) {
         lastSpokenCueToken = cueToken
     }
@@ -228,6 +262,7 @@ class LiuyiTrainerViewModel(
         val session = selectedHistorySession ?: return
         selectedFamilyId = session.session.familyId
         selectedStepLevel = session.session.stepLevel
+        persistSelection()
         restPresetSeconds = session.session.restPresetSeconds
         sessionState = TrainingSessionState.Idle
         summaryRepDrafts = emptyList()
@@ -247,15 +282,31 @@ class LiuyiTrainerViewModel(
         }
     }
 
+    private fun persistSelection() {
+        selectionPreferences.edit()
+            .putString(KEY_SELECTED_FAMILY_ID, selectedFamilyId)
+            .putInt(KEY_SELECTED_STEP_LEVEL, selectedStepLevel)
+            .apply()
+    }
+
     fun beginTraining() {
         val preparedAt = Instant.now()
         nowUtc = preparedAt
         summaryRepDrafts = emptyList()
         summarySaved = false
+        val customCadence = com.liuyi.trainer.model.CadenceProfile(
+            id = "custom",
+            label = "${customEccentricSeconds}-${customBottomPauseSeconds}-${customConcentricSeconds} 自定义节奏",
+            eccentricSeconds = customEccentricSeconds,
+            bottomPauseSeconds = customBottomPauseSeconds,
+            concentricSeconds = customConcentricSeconds,
+            topPauseSeconds = 0,
+            source = "用户自定义节奏"
+        )
         sessionState = prepareTrainingSession(
             familyId = selectedContext.family.id,
             stepLevel = selectedContext.step.level,
-            cadenceProfile = selectedContext.family.previewCadence,
+            cadenceProfile = customCadence,
             restPreset = defaultRestPreset().copy(defaultRestSeconds = restPresetSeconds),
             prepareStartedAtUtc = preparedAt,
             preparationSeconds = preparationSeconds,
@@ -568,6 +619,10 @@ class LiuyiTrainerViewModel(
         return null
     }
 }
+
+private const val SELECTION_PREFS_NAME = "liuyi_trainer_selection"
+private const val KEY_SELECTED_FAMILY_ID = "selected_family_id"
+private const val KEY_SELECTED_STEP_LEVEL = "selected_step_level"
 
 private fun defaultVoiceOption(): DeviceVoiceOption = DeviceVoiceOption(
     id = "",

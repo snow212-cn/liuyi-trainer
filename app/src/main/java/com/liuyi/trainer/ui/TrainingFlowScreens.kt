@@ -126,6 +126,8 @@ data class RunningPreview(
     val context: ExerciseContext,
     val currentPhaseLabel: String,
     val phaseSecondLabel: String,
+    val phaseProgress: Float,
+    val phaseColor: Color,
     val phaseCueText: String,
     val activeBeatIndex: Int,
     val speechSequenceId: String,
@@ -199,6 +201,9 @@ data class TrainingSettingsPreview(
     val backgroundMusicOptions: List<TrainingBackgroundMusicOption>,
     val selectedBackgroundMusicId: String,
     val selectedBackgroundMusicLabel: String,
+    val customEccentricSeconds: Int,
+    val customBottomPauseSeconds: Int,
+    val customConcentricSeconds: Int,
 )
 
 data class HistoryRowPreview(
@@ -268,7 +273,7 @@ fun TrainingReadyScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    MutedBody(text = "原书节奏 2-1-2")
+                    MutedBody(text = preview.cadenceLabel)
                     MutedBody(text = preview.restPresetLabel)
                 }
             }
@@ -284,17 +289,17 @@ fun TrainingReadyScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                SteelPrimaryButton(
-                    text = "开始本组",
-                    onClick = onStartSet,
-                    modifier = Modifier.weight(1f),
-                )
                 SteelSecondaryButton(
-                    text = "动作标准",
-                    onClick = onOpenStandards,
                     modifier = Modifier.weight(1f),
+                    text = "查看标准",
+                    onClick = onOpenStandards,
+                )
+                SteelPrimaryButton(
+                    modifier = Modifier.weight(1f),
+                    text = "开始训练",
+                    onClick = onStartSet,
                 )
             }
         }
@@ -323,7 +328,7 @@ fun TrainingPreparationScreen(
     PrisonSurface {
         PrisonScrollColumn {
             ScreenTopBar(
-                title = "准备开始",
+                title = "训练准备",
                 actionLabel = "返回首页",
                 onAction = onBack,
             )
@@ -331,60 +336,20 @@ fun TrainingPreparationScreen(
             StatusStrip(
                 lines = listOf(
                     "${preview.context.family.titleZh}·${preview.context.step.label}",
-                    "第${preview.currentSetIndex}组 · 已完成${preview.completedSetCount}组",
+                    "第${preview.currentSetIndex}组 · 已完成${preview.completedSetCount}组 · 累计${preview.totalRepCount}次",
                 ),
             )
 
             SteelPanel {
-                SectionKicker(text = "就位")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(228.dp)
-                            .clip(CircleShape)
-                            .border(
-                                width = 8.dp,
-                                brush = Brush.sweepGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.secondary,
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.secondary,
-                                    ),
-                                ),
-                                shape = CircleShape,
-                            )
-                            .background(
-                                brush = Brush.radialGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        MaterialTheme.colorScheme.background,
-                                    ),
-                                ),
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Text(
-                                text = preview.countdownLabel,
-                                style = MaterialTheme.typography.displayLarge,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            MutedBody(text = preview.hintLabel)
-                        }
-                    }
-                }
-                MetricPlate(
-                    label = "累计次数",
-                    value = preview.totalRepCount.toString(),
+                SectionKicker(text = "即将开始")
+                Text(
+                    text = preview.countdownLabel,
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
                 )
+                MutedBody(text = preview.hintLabel)
             }
         }
     }
@@ -440,6 +405,9 @@ fun TrainingRunningScreen(
             CadenceCorePanel(
                 phaseLabel = preview.currentPhaseLabel,
                 phaseSecondLabel = preview.phaseSecondLabel,
+                phaseProgress = preview.phaseProgress,
+                phaseColor = preview.phaseColor,
+                currentRepCount = preview.currentRepCount,
                 cueText = preview.phaseCueText,
                 activeBeatIndex = preview.activeBeatIndex,
             )
@@ -652,6 +620,60 @@ fun TrainingSummaryScreen(
 }
 
 @Composable
+private fun CustomCadencePicker(
+    eccentricSeconds: Int,
+    bottomPauseSeconds: Int,
+    concentricSeconds: Int,
+    onUpdateEccentric: (Int) -> Unit,
+    onUpdateBottomPause: (Int) -> Unit,
+    onUpdateConcentric: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        TempoSliderRow(label = "下放（秒）", value = eccentricSeconds, onValueChange = onUpdateEccentric)
+        TempoSliderRow(label = "底部停顿（秒）", value = bottomPauseSeconds, onValueChange = onUpdateBottomPause)
+        TempoSliderRow(label = "上推（秒）", value = concentricSeconds, onValueChange = onUpdateConcentric)
+    }
+}
+
+@Composable
+private fun TempoSliderRow(
+    label: String,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.width(96.dp),
+        )
+        androidx.compose.material3.Slider(
+            value = value.toFloat(),
+            onValueChange = { onValueChange(it.toInt()) },
+            valueRange = 0f..10f,
+            steps = 9,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(20.dp),
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+@Composable
 fun TrainingSettingsScreen(
     preview: TrainingSettingsPreview,
     onBack: () -> Unit,
@@ -664,6 +686,9 @@ fun TrainingSettingsScreen(
     onUpdateRestCountdownVoiceEnabled: (Boolean) -> Unit,
     onUpdateBackgroundMusicEnabled: (Boolean) -> Unit,
     onUpdateSelectedBackgroundMusic: (String) -> Unit,
+    onUpdateCustomEccentricSeconds: (Int) -> Unit,
+    onUpdateCustomBottomPauseSeconds: (Int) -> Unit,
+    onUpdateCustomConcentricSeconds: (Int) -> Unit,
 ) {
     PrisonSurface {
         PrisonScrollColumn {
@@ -674,21 +699,24 @@ fun TrainingSettingsScreen(
             )
 
             SteelPanel {
-                SectionKicker(text = "语音与节奏")
-                ReadySettingRow(label = "原书节奏", value = "2-1-2")
-                ReadySettingRow(label = "当前语音", value = preview.voiceModeLabel)
-                ReadySettingRow(label = "组间休息", value = "${preview.restPresetSeconds} 秒")
-                ReadySettingRow(label = "起组准备", value = "${preview.preparationSeconds} 秒")
-                ReadySettingRow(
-                    label = "背景音乐",
-                    value = if (preview.backgroundMusicEnabled) preview.selectedBackgroundMusicLabel else "关闭",
+                SteelSectionHeader(
+                    title = "动作节奏",
+                    subtitle = "${preview.customEccentricSeconds}-${preview.customBottomPauseSeconds}-${preview.customConcentricSeconds}",
+                )
+                CustomCadencePicker(
+                    eccentricSeconds = preview.customEccentricSeconds,
+                    bottomPauseSeconds = preview.customBottomPauseSeconds,
+                    concentricSeconds = preview.customConcentricSeconds,
+                    onUpdateEccentric = onUpdateCustomEccentricSeconds,
+                    onUpdateBottomPause = onUpdateCustomBottomPauseSeconds,
+                    onUpdateConcentric = onUpdateCustomConcentricSeconds,
                 )
             }
 
-            SteelPanel(soft = true) {
+            SteelPanel {
                 SteelSectionHeader(
-                    title = "语音总开关",
-                    subtitle = if (preview.speechEnabled) "已开启" else "已关闭",
+                    title = "语音引导",
+                    subtitle = preview.voiceModeLabel,
                 )
                 BooleanOptionRow(
                     enabled = preview.speechEnabled,
@@ -696,56 +724,50 @@ fun TrainingSettingsScreen(
                     disabledText = "语音关闭",
                     onToggle = onUpdateSpeechEnabled,
                 )
+                if (preview.speechEnabled) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    VoiceModeSelector(
+                        selectedMode = preview.voiceGuideMode,
+                        onSelect = onUpdateVoiceGuideMode,
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    VoicePersonSelector(
+                        voices = preview.availableVoices,
+                        selectedVoiceId = preview.selectedVoiceId,
+                        onSelect = onUpdateSelectedVoice,
+                    )
+                }
             }
 
-            SteelPanel(soft = true) {
+            SteelPanel {
                 SteelSectionHeader(
-                    title = "训练语音模式",
-                    subtitle = preview.voiceModeLabel,
+                    title = "休息与准备",
+                    subtitle = "${preview.restPresetSeconds} 秒休息 · ${preview.preparationSeconds} 秒准备",
                 )
-                VoiceModeSelector(
-                    selectedMode = preview.voiceGuideMode,
-                    onSelect = onUpdateVoiceGuideMode,
-                )
-            }
-
-            SteelPanel(soft = true) {
-                SteelSectionHeader(
-                    title = "语音人物",
-                    subtitle = preview.selectedVoiceLabel,
-                )
-                VoicePersonSelector(
-                    voices = preview.availableVoices,
-                    selectedVoiceId = preview.selectedVoiceId,
-                    onSelect = onUpdateSelectedVoice,
-                )
-            }
-
-            SteelPanel(soft = true) {
-                SteelSectionHeader(
-                    title = "起组准备",
-                    subtitle = "${preview.preparationSeconds} 秒",
+                Text(
+                    text = "起组准备（秒）",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
                 SecondsSelector(
                     options = preview.preparationOptions,
                     selectedSeconds = preview.preparationSeconds,
                     onSelect = onUpdatePreparationSeconds,
                 )
-            }
-
-            SteelPanel(soft = true) {
-                SteelSectionHeader(
-                    title = "组间休息",
-                    subtitle = "${preview.restPresetSeconds} 秒",
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                Text(
+                    text = "组间休息（秒）",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
                 SecondsSelector(
                     options = preview.restPresetOptions,
                     selectedSeconds = preview.restPresetSeconds,
                     onSelect = onUpdateRestPreset,
                 )
-            }
-
-            SteelPanel(soft = true) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                 SteelSectionHeader(
                     title = "休息倒数播报",
                     subtitle = if (preview.restCountdownVoiceEnabled) "最后 3 秒播报" else "关闭",
@@ -1600,6 +1622,9 @@ private fun TogglePill(
 private fun CadenceCorePanel(
     phaseLabel: String,
     phaseSecondLabel: String,
+    phaseProgress: Float,
+    phaseColor: Color,
+    currentRepCount: Int,
     cueText: String,
     activeBeatIndex: Int,
 ) {
@@ -1635,24 +1660,47 @@ private fun CadenceCorePanel(
                     ),
                 contentAlignment = Alignment.Center,
             ) {
+                // Background track
+                Box(
+                    modifier = Modifier
+                        .size(230.dp)
+                        .border(12.dp, MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                )
+
+                // Progress indicator (using visual effect)
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(230.dp)) {
+                    val strokeWidth = 12.dp.toPx()
+                    drawArc(
+                        color = phaseColor,
+                        startAngle = -90f,
+                        sweepAngle = 360f * phaseProgress,
+                        useCenter = false,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = strokeWidth,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                    )
+                }
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = phaseLabel,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.secondary,
+                        text = "第 $currentRepCount 次",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Black,
                     )
                     Text(
-                        text = phaseSecondLabel,
-                        style = MaterialTheme.typography.displayLarge,
+                        text = phaseLabel,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = phaseColor,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = cueText,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Black,
                     )
                 }
             }
@@ -2417,6 +2465,9 @@ fun buildSettingsPreview(
     backgroundMusicEnabled: Boolean,
     backgroundMusicOptions: List<TrainingBackgroundMusicOption>,
     selectedBackgroundMusicId: String,
+    customEccentricSeconds: Int,
+    customBottomPauseSeconds: Int,
+    customConcentricSeconds: Int,
 ): TrainingSettingsPreview = TrainingSettingsPreview(
     speechEnabled = speechEnabled,
     voiceGuideMode = voiceGuideMode,
@@ -2437,6 +2488,9 @@ fun buildSettingsPreview(
         ?.label
         ?: backgroundMusicOptions.firstOrNull()?.label
         ?: "未设置",
+    customEccentricSeconds = customEccentricSeconds,
+    customBottomPauseSeconds = customBottomPauseSeconds,
+    customConcentricSeconds = customConcentricSeconds,
 )
 
 fun buildPreparingPreview(
@@ -2452,7 +2506,7 @@ fun buildPreparingPreview(
         completedSetCount = state.completedSets.size,
         totalRepCount = state.completedSets.sumOf { it.completedRepCount },
         countdownLabel = remainingSeconds.toString(),
-        hintLabel = "就位后按 2-1-2 开始",
+        hintLabel = "就位后按 ${state.cadenceProfile.label} 开始",
         speechSequenceId = "prep-${state.prepareStartedAtUtc.toEpochMilli()}",
         speechCueKey = "prep-$remainingSeconds",
         speechCueText = remainingSeconds.toString(),
@@ -2478,10 +2532,21 @@ fun buildRunningPreview(
         voiceGuideMode = voiceGuideMode,
         speechEnabled = speechEnabled,
     )
+    val phaseProgress = if (progress.phaseTotalMs > 0) {
+        progress.phaseElapsedMs.toFloat() / progress.phaseTotalMs.toFloat()
+    } else {
+        1f
+    }
     return RunningPreview(
         context = context,
         currentPhaseLabel = progress.phase.displayLabelZh(),
         phaseSecondLabel = String.format(Locale.getDefault(), "%.1f", progress.phaseElapsedMs / 1000f),
+        phaseProgress = phaseProgress,
+        phaseColor = when (progress.phase) {
+            CadencePhase.Lowering -> Color(0xFF64B5F6) // Light Blue
+            CadencePhase.BottomHold -> Color(0xFFFFB74D) // Orange
+            CadencePhase.Rising -> Color(0xFF81C784) // Light Green
+        },
         phaseCueText = progress.phase.displayCueText(
             voiceGuideMode = voiceGuideMode,
             phaseSecond = phaseSecond,
@@ -2855,7 +2920,7 @@ private fun CadencePhase.breathCue(): String = when (this) {
 
 fun defaultExerciseContext(): ExerciseContext {
     val family = ExerciseCatalog.families.first()
-    val step = family.steps[3]
+    val step = family.steps.first()
     return ExerciseContext(
         family = family,
         step = step,

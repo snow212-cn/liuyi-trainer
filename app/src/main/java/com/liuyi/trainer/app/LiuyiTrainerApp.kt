@@ -161,8 +161,8 @@ fun LiuyiTrainerApp(
                     preview = buildTrainingEntryPreview(
                         context = appViewModel.selectedContext,
                         restPresetSeconds = appViewModel.restPresetSeconds,
-                        cadenceLabel = readySettingsSummary(appViewModel),
-                        cadenceSeconds = ExerciseCatalog.previewCadence.cycleDurationMs / 1000,
+                        cadenceLabel = "${appViewModel.customEccentricSeconds}-${appViewModel.customBottomPauseSeconds}-${appViewModel.customConcentricSeconds} 自定义节奏",
+                        cadenceSeconds = (appViewModel.customEccentricSeconds + appViewModel.customBottomPauseSeconds + appViewModel.customConcentricSeconds).toLong(),
                     ),
                     onBack = {
                         navController.popBackStack(Routes.Home, false)
@@ -254,6 +254,9 @@ fun LiuyiTrainerApp(
                     backgroundMusicEnabled = appViewModel.backgroundMusicEnabled,
                     backgroundMusicOptions = appViewModel.backgroundMusicOptions,
                     selectedBackgroundMusicId = appViewModel.selectedBackgroundMusicId,
+                    customEccentricSeconds = appViewModel.customEccentricSeconds,
+                    customBottomPauseSeconds = appViewModel.customBottomPauseSeconds,
+                    customConcentricSeconds = appViewModel.customConcentricSeconds,
                 ),
                 onBack = {
                     navController.popBackStack()
@@ -269,6 +272,9 @@ fun LiuyiTrainerApp(
                 onUpdateRestCountdownVoiceEnabled = appViewModel::updateRestCountdownVoiceEnabled,
                 onUpdateBackgroundMusicEnabled = appViewModel::updateBackgroundMusicEnabled,
                 onUpdateSelectedBackgroundMusic = appViewModel::updateSelectedBackgroundMusic,
+                onUpdateCustomEccentricSeconds = appViewModel::updateCustomEccentricSeconds,
+                onUpdateCustomBottomPauseSeconds = appViewModel::updateCustomBottomPauseSeconds,
+                onUpdateCustomConcentricSeconds = appViewModel::updateCustomConcentricSeconds,
             )
         }
 
@@ -323,7 +329,7 @@ fun LiuyiTrainerApp(
 
         composable(Routes.Standards) {
             StandardsScreen(
-                preview = buildStandardsPreview(activeContext),
+                preview = buildStandardsPreview(appViewModel.selectedContext),
                 onBack = {
                     navController.popBackStack()
                 },

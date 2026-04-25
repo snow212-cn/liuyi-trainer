@@ -12,6 +12,7 @@ enum class CadencePhase {
 data class LiveCadenceProgress(
     val phase: CadencePhase,
     val phaseElapsedMs: Long,
+    val phaseTotalMs: Long,
     val completedRepCount: Int,
 )
 
@@ -37,23 +38,27 @@ fun trackLiveCadence(
 
     val loweringMs = cadenceProfile.eccentricSeconds * 1000L
     val bottomHoldMs = cadenceProfile.bottomPauseSeconds * 1000L
+    val risingMs = cadenceProfile.concentricSeconds * 1000L
 
     return when {
         cyclePositionMs < loweringMs -> LiveCadenceProgress(
             phase = CadencePhase.Lowering,
             phaseElapsedMs = cyclePositionMs,
+            phaseTotalMs = loweringMs,
             completedRepCount = completedRepCount,
         )
 
         cyclePositionMs < loweringMs + bottomHoldMs -> LiveCadenceProgress(
             phase = CadencePhase.BottomHold,
             phaseElapsedMs = cyclePositionMs - loweringMs,
+            phaseTotalMs = bottomHoldMs,
             completedRepCount = completedRepCount,
         )
 
         else -> LiveCadenceProgress(
             phase = CadencePhase.Rising,
             phaseElapsedMs = cyclePositionMs - loweringMs - bottomHoldMs,
+            phaseTotalMs = risingMs,
             completedRepCount = completedRepCount,
         )
     }

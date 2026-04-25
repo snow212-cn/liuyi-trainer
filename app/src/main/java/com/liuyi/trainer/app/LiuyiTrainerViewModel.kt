@@ -125,6 +125,15 @@ class LiuyiTrainerViewModel(
     var latestHistoryExportLabel by mutableStateOf<String?>(null)
         private set
 
+    var customEccentricSeconds by mutableIntStateOf(2)
+        private set
+
+    var customBottomPauseSeconds by mutableIntStateOf(1)
+        private set
+
+    var customConcentricSeconds by mutableIntStateOf(2)
+        private set
+
     val restPresetOptions: List<Int> = defaultRestPreset().presetOptionsSeconds
     val preparationOptions: List<Int> = listOf(3, 5, 8)
     val backgroundMusicOptions: List<TrainingBackgroundMusicOption> = trainingBackgroundMusicOptions
@@ -209,6 +218,18 @@ class LiuyiTrainerViewModel(
         }
     }
 
+    fun updateCustomEccentricSeconds(seconds: Int) {
+        customEccentricSeconds = seconds.coerceIn(0, 10)
+    }
+
+    fun updateCustomBottomPauseSeconds(seconds: Int) {
+        customBottomPauseSeconds = seconds.coerceIn(0, 10)
+    }
+
+    fun updateCustomConcentricSeconds(seconds: Int) {
+        customConcentricSeconds = seconds.coerceIn(0, 10)
+    }
+
     fun markSpeechCueSpoken(cueToken: String) {
         lastSpokenCueToken = cueToken
     }
@@ -252,10 +273,19 @@ class LiuyiTrainerViewModel(
         nowUtc = preparedAt
         summaryRepDrafts = emptyList()
         summarySaved = false
+        val customCadence = com.liuyi.trainer.model.CadenceProfile(
+            id = "custom",
+            label = "${customEccentricSeconds}-${customBottomPauseSeconds}-${customConcentricSeconds} 鑷畾涔夎妭濂?,
+            eccentricSeconds = customEccentricSeconds,
+            bottomPauseSeconds = customBottomPauseSeconds,
+            concentricSeconds = customConcentricSeconds,
+            topPauseSeconds = 0,
+            source = "鐢ㄦ埛鑷畾涔夎妭濂?
+        )
         sessionState = prepareTrainingSession(
             familyId = selectedContext.family.id,
             stepLevel = selectedContext.step.level,
-            cadenceProfile = selectedContext.family.previewCadence,
+            cadenceProfile = customCadence,
             restPreset = defaultRestPreset().copy(defaultRestSeconds = restPresetSeconds),
             prepareStartedAtUtc = preparedAt,
             preparationSeconds = preparationSeconds,

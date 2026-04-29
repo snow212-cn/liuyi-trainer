@@ -24,8 +24,8 @@
 
 ## 3. CI/CD 规则
 
-- `develop` push：执行构建验证，不发布 GitHub Release
-- `main` push：执行候选构建，不发布 GitHub Release
+- `develop` push：执行构建验证，并更新调试版 GitHub Release 下载页
+- `main` push：执行候选构建，并按实际产物更新最新 GitHub Release 下载页
 - `vX.Y.Z` tag：执行正式 release 构建，并发布 GitHub Release
 
 ## 4. 发版步骤

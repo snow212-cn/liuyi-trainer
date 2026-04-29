@@ -56,8 +56,8 @@
 仓库现在采用更接近正式开源软件的发布方式：
 
 - 版本号在仓库内固定维护，或绑定 CI 运行次数
-- `develop` 和 PR 只做持续集成构建验证
-- `main` push 只做候选构建，不覆盖正式 GitHub Release
+- `develop` 和 PR 会执行持续集成构建验证，其中 `develop` push 还会更新最新调试版下载入口
+- `main` push 会执行候选构建，并按实际产物刷新最新下载入口；只有 `vX.Y.Z` Git tag 才发布正式版本页
 - 只有 `vX.Y.Z` 形式的 Git tag 才发布正式版本
 
 具体步骤见 `docs/process/release-process.md`。

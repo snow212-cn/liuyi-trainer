@@ -16,20 +16,21 @@ class TrainingHistoryRepository(
         trainingHistoryDao.deleteSessionById(sessionId)
     }
 
-    suspend fun updateSessionRepCounts(
+    suspend fun updateSessionSetDetails(
         sessionId: Long,
-        setRepUpdates: List<Pair<Long, Int>>,
+        setUpdates: List<Triple<Long, Int, Long>>,
     ) {
-        setRepUpdates.forEach { (setId, completedRepCount) ->
-            trainingHistoryDao.updateSetRepCount(
+        setUpdates.forEach { (setId, completedRepCount, elapsedMs) ->
+            trainingHistoryDao.updateSetDetails(
                 setId = setId,
                 completedRepCount = completedRepCount,
+                elapsedMs = elapsedMs,
             )
         }
         trainingHistoryDao.updateSessionTotals(
             sessionId = sessionId,
-            totalSets = setRepUpdates.size,
-            totalReps = setRepUpdates.sumOf { it.second },
+            totalSets = setUpdates.size,
+            totalReps = setUpdates.sumOf { it.second },
         )
     }
 

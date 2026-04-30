@@ -98,13 +98,15 @@ interface TrainingHistoryDao {
     @Query(
         """
         UPDATE training_sets
-        SET completedRepCount = :completedRepCount
+        SET completedRepCount = :completedRepCount,
+            elapsedMs = :elapsedMs
         WHERE setId = :setId
         """
     )
-    suspend fun updateSetRepCount(
+    suspend fun updateSetDetails(
         setId: Long,
         completedRepCount: Int,
+        elapsedMs: Long,
     )
 
     @Query("DELETE FROM training_sessions")

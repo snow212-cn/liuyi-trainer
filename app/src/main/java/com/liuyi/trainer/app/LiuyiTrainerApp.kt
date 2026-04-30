@@ -306,6 +306,7 @@ fun LiuyiTrainerApp(
                 preview = buildHistoryDetailPreview(
                     sessionWithSets = appViewModel.selectedHistorySession,
                     repDrafts = appViewModel.historyRepDrafts,
+                    durationDrafts = appViewModel.historyDurationDrafts,
                     hasPendingEdits = appViewModel.historyEditsDirty,
                 ),
                 onBack = {
@@ -323,6 +324,7 @@ fun LiuyiTrainerApp(
                     navController.popBackStack()
                 },
                 onUpdateRep = appViewModel::updateHistoryRep,
+                onUpdateDuration = appViewModel::updateHistoryDuration,
                 onSave = appViewModel::saveSelectedHistoryEdits,
             )
         }

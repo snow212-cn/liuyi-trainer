@@ -124,6 +124,9 @@ class LiuyiTrainerViewModel(
     var historyRepDrafts by mutableStateOf<List<String>>(emptyList())
         private set
 
+    var historyDurationDrafts by mutableStateOf<List<String>>(emptyList())
+        private set
+
     var historyEditsDirty by mutableStateOf(false)
         private set
 
@@ -232,15 +235,15 @@ class LiuyiTrainerViewModel(
     }
 
     fun updateCustomEccentricSeconds(seconds: Int) {
-        customEccentricSeconds = seconds.coerceIn(0, 10)
+        customEccentricSeconds = seconds.coerceIn(0, 5)
     }
 
     fun updateCustomBottomPauseSeconds(seconds: Int) {
-        customBottomPauseSeconds = seconds.coerceIn(0, 10)
+        customBottomPauseSeconds = seconds.coerceIn(0, 5)
     }
 
     fun updateCustomConcentricSeconds(seconds: Int) {
-        customConcentricSeconds = seconds.coerceIn(0, 10)
+        customConcentricSeconds = seconds.coerceIn(0, 5)
     }
 
     fun markSpeechCueSpoken(cueToken: String) {
@@ -427,6 +430,25 @@ class LiuyiTrainerViewModel(
         historyEditsDirty = true
     }
 
+    fun updateHistoryDuration(
+        index: Int,
+        value: String,
+    ) {
+        if (index !in historyDurationDrafts.indices) {
+            return
+        }
+
+        val sanitized = value.filter(Char::isDigit).take(5)
+        historyDurationDrafts = historyDurationDrafts.mapIndexed { currentIndex, currentValue ->
+            if (currentIndex == index) {
+                sanitized
+            } else {
+                currentValue
+            }
+        }
+        historyEditsDirty = true
+    }
+
     fun saveSelectedHistoryEdits() {
         val session = selectedHistorySession ?: return
         val sortedSets = session.sets.sortedBy { it.setIndex }
@@ -434,14 +456,18 @@ class LiuyiTrainerViewModel(
             return
         }
 
-        val repUpdates = sortedSets.mapIndexed { index, set ->
-            set.setId to (historyRepDrafts.getOrNull(index)?.toIntOrNull() ?: set.completedRepCount)
+        val setUpdates = sortedSets.mapIndexed { index, set ->
+            Triple(
+                set.setId,
+                historyRepDrafts.getOrNull(index)?.toIntOrNull() ?: set.completedRepCount,
+                (historyDurationDrafts.getOrNull(index)?.toLongOrNull() ?: (set.elapsedMs / 1000L)) * 1000L,
+            )
         }
 
         viewModelScope.launch {
-            trainingHistoryRepository.updateSessionRepCounts(
+            trainingHistoryRepository.updateSessionSetDetails(
                 sessionId = session.session.sessionId,
-                setRepUpdates = repUpdates,
+                setUpdates = setUpdates,
             )
             historyEditsDirty = false
         }
@@ -548,10 +574,16 @@ class LiuyiTrainerViewModel(
             return
         }
 
-        historyRepDrafts = selectedHistorySession
+        val sortedSets = selectedHistorySession
             ?.sets
             ?.sortedBy { it.setIndex }
+
+        historyRepDrafts = sortedSets
             ?.map { it.completedRepCount.toString() }
+            ?: emptyList()
+
+        historyDurationDrafts = sortedSets
+            ?.map { (it.elapsedMs / 1000L).toString() }
             ?: emptyList()
     }
 

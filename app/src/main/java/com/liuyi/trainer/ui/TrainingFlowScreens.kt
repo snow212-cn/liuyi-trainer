@@ -96,13 +96,12 @@ private val UiClockFormatter: DateTimeFormatter =
 private val UiMonthFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy年M月").withZone(ZoneId.systemDefault())
 
-private val UiHistoryDayKeyFormatter: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault())
-
-private val UiHistoryDayFormatter: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("M月d日").withZone(ZoneId.systemDefault())
+private val UiDayFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("M月d日 EEE", Locale.CHINA).withZone(ZoneId.systemDefault())
 
 private const val WhistleSpeechGapMs = 120L
+private const val HistoryInitialVisibleRows = 60
+private const val HistoryVisibleRowsStep = 60
 
 data class ExerciseContext(
     val family: MovementFamily,
@@ -217,13 +216,13 @@ data class HistoryRowPreview(
     val familyLabel: String,
     val stepLabel: String,
     val title: String,
-    val totalReps: Int,
-    val totalSets: Int,
+    val totalRepsLabel: String,
+    val setCountLabel: String,
     val setPreview: String,
     val monthLabel: String,
-    val dayKey: String,
     val dayLabel: String,
     val timeLabel: String,
+    val dateLabel: String,
 )
 
 data class HistoryPreview(
@@ -231,6 +230,16 @@ data class HistoryPreview(
     val transferStatus: String?,
     val latestExportLabel: String?,
     val latestExportUri: String?,
+)
+
+internal data class HistoryDayGroupPreview(
+    val dayLabel: String,
+    val rows: List<HistoryRowPreview>,
+)
+
+internal data class HistoryMonthGroupPreview(
+    val monthLabel: String,
+    val dayGroups: List<HistoryDayGroupPreview>,
 )
 
 data class HistorySetDetailPreview(
@@ -253,14 +262,6 @@ data class HistoryDetailPreview(
     val restPresetLabel: String,
     val setDetails: List<HistorySetDetailPreview>,
     val isSaveEnabled: Boolean,
-)
-
-private data class HistoryDaySectionPreview(
-    val dayKey: String,
-    val dayLabel: String,
-    val sessionCount: Int,
-    val totalReps: Int,
-    val rows: List<HistoryRowPreview>,
 )
 
 @Composable
@@ -927,13 +928,16 @@ fun TrainingHistoryScreen(
                 (selectedMonth == "全部月份" || row.monthLabel == selectedMonth)
         }
     }
-    val daySections = remember(filteredRows) {
-        buildHistoryDaySections(filteredRows)
+    var visibleRowLimit by remember(preview.rows, selectedFamily, selectedStep, selectedMonth) {
+        mutableStateOf(HistoryInitialVisibleRows)
     }
-    var expandedDayKeys by remember(daySections) {
-        mutableStateOf(
-            daySections.firstOrNull()?.let { setOf(it.dayKey) } ?: emptySet(),
-        )
+    LaunchedEffect(preview.rows, selectedFamily, selectedStep, selectedMonth) {
+        visibleRowLimit = HistoryInitialVisibleRows
+    }
+    val visibleCount = filteredRows.size.coerceAtMost(visibleRowLimit)
+    val remainingCount = (filteredRows.size - visibleCount).coerceAtLeast(0)
+    val historyGroups = remember(filteredRows, visibleRowLimit) {
+        buildHistoryGroups(rows = filteredRows, visibleRowLimit = visibleRowLimit)
     }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
@@ -1015,6 +1019,9 @@ fun TrainingHistoryScreen(
                         monthOptions = monthOptions,
                         selectedMonth = selectedMonth,
                         onSelectMonth = { selectedMonth = it },
+                        totalCount = preview.rows.size,
+                        filteredCount = filteredRows.size,
+                        visibleCount = visibleCount,
                     )
                 }
             }
@@ -1050,30 +1057,33 @@ fun TrainingHistoryScreen(
                     }
                 }
             } else {
-                daySections.forEach { section ->
-                    val expanded = section.dayKey in expandedDayKeys
-                    item(key = "day-${section.dayKey}") {
-                        HistoryDaySectionHeader(
-                            label = section.dayLabel,
-                            sessionCount = section.sessionCount,
-                            totalReps = section.totalReps,
-                            expanded = expanded,
-                            onToggle = {
-                                expandedDayKeys = if (expanded) {
-                                    expandedDayKeys - section.dayKey
-                                } else {
-                                    expandedDayKeys + section.dayKey
-                                }
-                            },
-                        )
+                historyGroups.forEach { monthGroup ->
+                    item(key = "month-${monthGroup.monthLabel}") {
+                        HistoryMonthDivider(label = monthGroup.monthLabel)
                     }
-                    if (expanded) {
-                        items(section.rows, key = { it.sessionId }) { row ->
+                    monthGroup.dayGroups.forEach { dayGroup ->
+                        item(key = "day-${monthGroup.monthLabel}-${dayGroup.dayLabel}") {
+                            HistoryDayDivider(
+                                label = dayGroup.dayLabel,
+                                countLabel = "${dayGroup.rows.size} 条",
+                            )
+                        }
+                        items(dayGroup.rows, key = { it.sessionId }) { row ->
                             HistoryListCard(
                                 preview = row,
                                 onClick = { onOpenDetail(row.sessionId) },
                             )
                         }
+                    }
+                }
+                if (remainingCount > 0) {
+                    item(key = "history-load-more") {
+                        HistoryLoadMorePanel(
+                            visibleCount = visibleCount,
+                            totalCount = filteredRows.size,
+                            nextBatchCount = remainingCount.coerceAtMost(HistoryVisibleRowsStep),
+                            onLoadMore = { visibleRowLimit += HistoryVisibleRowsStep },
+                        )
                     }
                 }
             }
@@ -1927,6 +1937,9 @@ private fun HistoryFilterBar(
     monthOptions: List<String>,
     selectedMonth: String,
     onSelectMonth: (String) -> Unit,
+    totalCount: Int,
+    filteredCount: Int,
+    visibleCount: Int,
 ) {
     val defaultFamily = familyOptions.firstOrNull().orEmpty()
     val defaultStep = stepOptions.firstOrNull().orEmpty()
@@ -1940,7 +1953,14 @@ private fun HistoryFilterBar(
         if (selectedFamily != defaultFamily) add("六艺: $selectedFamily")
         if (selectedStep != defaultStep) add("动作: $selectedStep")
         if (selectedMonth != defaultMonth) add("月份: $selectedMonth")
-    }.joinToString("  ·  ").ifBlank { "当前显示全部训练记录" }
+    }.joinToString("  ·  ").ifBlank { "当前未启用筛选条件" }
+    val countLine = when {
+        filteredCount == 0 && totalCount == 0 -> "还没有保存的训练记录"
+        filteredCount == 0 -> "当前筛选没有命中记录"
+        visibleCount < filteredCount -> "当前显示 $visibleCount / $filteredCount 条结果（共 $totalCount 条）"
+        filteredCount == totalCount -> "共 $filteredCount 条训练记录"
+        else -> "命中 $filteredCount / $totalCount 条记录"
+    }
     var expanded by remember { mutableStateOf(false) }
 
     SteelPanel(soft = true) {
@@ -1961,10 +1981,15 @@ private fun HistoryFilterBar(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
+                        text = countLine,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                    Text(
                         text = summaryLine,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -2066,159 +2091,76 @@ private fun HistoryDropdownSelector(
 }
 
 @Composable
-private fun HistoryDaySectionHeader(
+private fun HistoryMonthDivider(
     label: String,
-    sessionCount: Int,
-    totalReps: Int,
-    expanded: Boolean,
-    onToggle: () -> Unit,
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(PrisonPanelShape)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                shape = PrisonPanelShape,
-            )
-            .background(
-                brush = Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.94f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                    ),
-                ),
-            )
-            .clickable(onClick = onToggle)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = "训练日期",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black,
-                )
-                Text(
-                    text = if (expanded) {
-                        "当天 $sessionCount 条记录已展开，轻触可收起旧档案。"
-                    } else {
-                        "当天累计 $totalReps 次，共 $sessionCount 条记录。轻触展开。"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text(
-                    text = totalReps.toString(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "$sessionCount 条",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = if (expanded) "收起" else "展开",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HistoryMetaTag(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
-                shape = RoundedCornerShape(999.dp),
-            )
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.28f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(top = 2.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold,
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            fontWeight = FontWeight.Bold,
+        )
+        HorizontalDivider(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 10.dp),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
         )
     }
 }
 
 @Composable
-private fun HistoryTotalPlate(
-    totalReps: Int,
-    totalSets: Int,
+private fun HistoryDayDivider(
+    label: String,
+    countLabel: String,
 ) {
-    Box(
+    Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(18.dp))
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.32f),
-                shape = RoundedCornerShape(18.dp),
-            )
-            .background(
-                brush = Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.92f),
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f),
-                    ),
-                ),
-            )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = totalReps.toString(),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-            Text(
-                text = "总次数",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.88f),
-            )
-            Text(
-                text = "$totalSets 组",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.78f),
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = countLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
+        )
+    }
+}
+
+@Composable
+private fun HistoryLoadMorePanel(
+    visibleCount: Int,
+    totalCount: Int,
+    nextBatchCount: Int,
+    onLoadMore: () -> Unit,
+) {
+    SteelPanel(soft = true) {
+        SectionKicker(text = "记录较多")
+        Text(
+            text = "已显示 $visibleCount / $totalCount 条",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        MutedBody(text = "继续展开更早的训练记录，避免历史页一次拉得过长。")
+        SteelSecondaryButton(
+            text = "再加载 $nextBatchCount 条",
+            onClick = onLoadMore,
+        )
     }
 }
 
@@ -2373,55 +2315,44 @@ private fun HistoryListCard(
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.96f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                        MaterialTheme.colorScheme.surface,
                     ),
                 ),
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {
-                Column(
+                Text(
+                    text = preview.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    Text(
-                        text = preview.familyLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = preview.stepLabel,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                    )
-                }
-                HistoryTotalPlate(
-                    totalReps = preview.totalReps,
-                    totalSets = preview.totalSets,
+                )
+                Text(
+                    text = preview.timeLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
+                    textAlign = TextAlign.End,
                 )
             }
+
+            Text(
+                text = "${preview.setCountLabel} · 总${preview.totalRepsLabel}次",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary,
+            )
 
             HistorySetBand(
                 setPreview = preview.setPreview,
             )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                HistoryMetaTag(text = "${preview.totalSets} 组")
-                HistoryMetaTag(text = "${preview.timeLabel} 完成")
-            }
         }
     }
 }
@@ -2433,29 +2364,15 @@ private fun HistorySetBand(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(16.dp),
-            )
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.46f))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.42f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "每组次数",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = setPreview,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            text = setPreview,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -2507,12 +2424,11 @@ private fun DetailSetBlock(
                 text = detail.restAfterLabel,
                 modifier = Modifier.weight(1f),
             )
+            DetailInlineMetaChip(
+                text = "结束 ${detail.endedAtLabel}",
+                modifier = Modifier.weight(1f),
+            )
         }
-        Text(
-            text = "结束 ${detail.endedAtLabel}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -2914,16 +2830,16 @@ fun buildHistoryPreview(
                 append("·")
                 append(step?.label ?: "第${sessionWithSets.session.stepLevel}式")
             },
-            totalReps = sessionWithSets.session.totalReps,
-            totalSets = sessionWithSets.session.totalSets,
+            totalRepsLabel = sessionWithSets.session.totalReps.toString(),
+            setCountLabel = "${sessionWithSets.session.totalSets} 组",
             setPreview = sessionWithSets.sets
                 .sortedBy { it.setIndex }
-                .joinToString(separator = " / ") { set -> set.completedRepCount.toString() }
+                .joinToString(separator = " + ") { set -> set.completedRepCount.toString() }
                 .ifBlank { "暂无分组明细" },
             monthLabel = UiMonthFormatter.format(endedAt),
-            dayKey = UiHistoryDayKeyFormatter.format(endedAt),
-            dayLabel = UiHistoryDayFormatter.format(endedAt),
+            dayLabel = UiDayFormatter.format(endedAt),
             timeLabel = UiClockFormatter.format(endedAt),
+            dateLabel = UiTimeFormatter.format(endedAt),
         )
     },
     transferStatus = transferStatus,
@@ -2931,18 +2847,27 @@ fun buildHistoryPreview(
     latestExportUri = latestExportUri,
 )
 
-private fun buildHistoryDaySections(rows: List<HistoryRowPreview>): List<HistoryDaySectionPreview> =
-    rows.groupBy { it.dayKey }
-        .map { (dayKey, groupedRows) ->
-            HistoryDaySectionPreview(
-                dayKey = dayKey,
-                dayLabel = groupedRows.first().dayLabel,
-                sessionCount = groupedRows.size,
-                totalReps = groupedRows.sumOf { it.totalReps },
-                rows = groupedRows,
+internal fun buildHistoryGroups(
+    rows: List<HistoryRowPreview>,
+    visibleRowLimit: Int = rows.size,
+): List<HistoryMonthGroupPreview> {
+    val visibleRows = rows.take(visibleRowLimit.coerceAtLeast(0))
+    return visibleRows
+        .groupBy { it.monthLabel }
+        .map { (monthLabel, monthRows) ->
+            HistoryMonthGroupPreview(
+                monthLabel = monthLabel,
+                dayGroups = monthRows
+                    .groupBy { it.dayLabel }
+                    .map { (dayLabel, dayRows) ->
+                        HistoryDayGroupPreview(
+                            dayLabel = dayLabel,
+                            rows = dayRows,
+                        )
+                    },
             )
         }
-        .sortedByDescending { it.dayKey }
+}
 
 fun buildHistoryDetailPreview(
     sessionWithSets: TrainingSessionWithSets?,

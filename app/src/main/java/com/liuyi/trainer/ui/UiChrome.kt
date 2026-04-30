@@ -246,17 +246,20 @@ fun SteelCompactButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     OutlinedButton(
         modifier = modifier,
         onClick = onClick,
+        enabled = enabled,
         shape = RoundedCornerShape(999.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.colorScheme.onSurface,
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.12f else 0.06f),
         ),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {

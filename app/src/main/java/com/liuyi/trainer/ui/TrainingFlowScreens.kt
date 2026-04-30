@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import com.liuyi.trainer.data.TrainingSessionWithSets
 import com.liuyi.trainer.data.TrainingHistoryImportMode
 import com.liuyi.trainer.model.CadencePhase
@@ -95,6 +96,12 @@ private val UiClockFormatter: DateTimeFormatter =
 
 private val UiMonthFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy年M月").withZone(ZoneId.systemDefault())
+
+private val UiDayKeyFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault())
+
+private val UiDayFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("M月d日", Locale.CHINA).withZone(ZoneId.systemDefault())
 
 private const val WhistleSpeechGapMs = 120L
 
@@ -215,7 +222,10 @@ data class HistoryRowPreview(
     val setCountLabel: String,
     val setPreview: String,
     val monthLabel: String,
+    val dayKey: String,
+    val dayLabel: String,
     val dateLabel: String,
+    val timeLabel: String,
 )
 
 data class HistoryPreview(
@@ -628,18 +638,14 @@ private fun CustomCadencePicker(
     onUpdateBottomPause: (Int) -> Unit,
     onUpdateConcentric: (Int) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        TempoSliderRow(label = "下放（秒）", value = eccentricSeconds, onValueChange = onUpdateEccentric)
-        TempoSliderRow(label = "底部停顿（秒）", value = bottomPauseSeconds, onValueChange = onUpdateBottomPause)
-        TempoSliderRow(label = "上推（秒）", value = concentricSeconds, onValueChange = onUpdateConcentric)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TempoSliderRow(label = "下放", value = eccentricSeconds, onValueChange = onUpdateEccentric)
+        TempoSliderRow(label = "停顿", value = bottomPauseSeconds, onValueChange = onUpdateBottomPause)
+        TempoSliderRow(label = "收缩", value = concentricSeconds, onValueChange = onUpdateConcentric)
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun TempoSliderRow(
     label: String,
@@ -649,12 +655,13 @@ private fun TempoSliderRow(
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.width(96.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(32.dp),
         )
         androidx.compose.material3.Slider(
             value = value.toFloat(),
@@ -662,12 +669,18 @@ private fun TempoSliderRow(
             valueRange = 0f..10f,
             steps = 9,
             modifier = Modifier.weight(1f),
+            thumb = {
+                androidx.compose.material3.SliderDefaults.Thumb(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    thumbSize = androidx.compose.ui.unit.DpSize(16.dp, 16.dp)
+                )
+            }
         )
         Text(
-            text = value.toString(),
-            style = MaterialTheme.typography.bodyLarge,
+            text = "${value}s",
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(20.dp),
+            modifier = Modifier.width(28.dp),
             textAlign = TextAlign.End,
         )
     }
@@ -698,6 +711,34 @@ fun TrainingSettingsScreen(
                 onAction = onBack,
             )
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SteelPanel(modifier = Modifier.weight(1f)) {
+                    SteelSectionHeader(
+                        title = "组间休息",
+                        subtitle = "${preview.restPresetSeconds}秒",
+                    )
+                    SecondsSelector(
+                        options = preview.restPresetOptions,
+                        selectedSeconds = preview.restPresetSeconds,
+                        onSelect = onUpdateRestPreset,
+                    )
+                }
+                SteelPanel(modifier = Modifier.weight(1f)) {
+                    SteelSectionHeader(
+                        title = "起组准备",
+                        subtitle = "${preview.preparationSeconds}秒",
+                    )
+                    SecondsSelector(
+                        options = preview.preparationOptions,
+                        selectedSeconds = preview.preparationSeconds,
+                        onSelect = onUpdatePreparationSeconds,
+                    )
+                }
+            }
+
             SteelPanel {
                 SteelSectionHeader(
                     title = "动作节奏",
@@ -716,7 +757,7 @@ fun TrainingSettingsScreen(
             SteelPanel {
                 SteelSectionHeader(
                     title = "语音引导",
-                    subtitle = preview.voiceModeLabel,
+                    subtitle = if (preview.speechEnabled) preview.voiceModeLabel else "已关闭",
                 )
                 BooleanOptionRow(
                     enabled = preview.speechEnabled,
@@ -725,77 +766,59 @@ fun TrainingSettingsScreen(
                     onToggle = onUpdateSpeechEnabled,
                 )
                 if (preview.speechEnabled) {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            VoicePersonSelector(
+                                voices = preview.availableVoices,
+                                selectedVoiceId = preview.selectedVoiceId,
+                                onSelect = onUpdateSelectedVoice,
+                            )
+                        }
+                        TogglePill(
+                            modifier = Modifier.weight(1f),
+                            selected = preview.restCountdownVoiceEnabled,
+                            text = "休息末秒播报",
+                            onClick = { onUpdateRestCountdownVoiceEnabled(!preview.restCountdownVoiceEnabled) },
+                        )
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
                     VoiceModeSelector(
                         selectedMode = preview.voiceGuideMode,
                         onSelect = onUpdateVoiceGuideMode,
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    VoicePersonSelector(
-                        voices = preview.availableVoices,
-                        selectedVoiceId = preview.selectedVoiceId,
-                        onSelect = onUpdateSelectedVoice,
-                    )
                 }
             }
 
-            SteelPanel {
-                SteelSectionHeader(
-                    title = "休息与准备",
-                    subtitle = "${preview.restPresetSeconds} 秒休息 · ${preview.preparationSeconds} 秒准备",
-                )
-                Text(
-                    text = "起组准备（秒）",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-                SecondsSelector(
-                    options = preview.preparationOptions,
-                    selectedSeconds = preview.preparationSeconds,
-                    onSelect = onUpdatePreparationSeconds,
-                )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                Text(
-                    text = "组间休息（秒）",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-                SecondsSelector(
-                    options = preview.restPresetOptions,
-                    selectedSeconds = preview.restPresetSeconds,
-                    onSelect = onUpdateRestPreset,
-                )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                SteelSectionHeader(
-                    title = "休息倒数播报",
-                    subtitle = if (preview.restCountdownVoiceEnabled) "最后 3 秒播报" else "关闭",
-                )
-                BooleanOptionRow(
-                    enabled = preview.restCountdownVoiceEnabled,
-                    enabledText = "最后 3 秒播报",
-                    disabledText = "不播报",
-                    onToggle = onUpdateRestCountdownVoiceEnabled,
-                )
-            }
-
             SteelPanel(soft = true) {
-                SteelSectionHeader(
-                    title = "训练背景音乐",
-                    subtitle = if (preview.backgroundMusicEnabled) preview.selectedBackgroundMusicLabel else "已关闭",
-                )
-                BackgroundMusicSelector(
-                    options = preview.backgroundMusicOptions,
-                    selectedId = preview.selectedBackgroundMusicId,
-                    onSelect = onUpdateSelectedBackgroundMusic,
-                )
-                BooleanOptionRow(
-                    enabled = preview.backgroundMusicEnabled,
-                    enabledText = "背景音乐开启",
-                    disabledText = "背景音乐关闭",
-                    onToggle = onUpdateBackgroundMusicEnabled,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "训练背景音乐",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    androidx.compose.material3.Switch(
+                        checked = preview.backgroundMusicEnabled,
+                        onCheckedChange = onUpdateBackgroundMusicEnabled,
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        )
+                    )
+                }
+                if (preview.backgroundMusicEnabled) {
+                    BackgroundMusicSelector(
+                        options = preview.backgroundMusicOptions,
+                        selectedId = preview.selectedBackgroundMusicId,
+                        onSelect = onUpdateSelectedBackgroundMusic,
+                    )
+                }
             }
 
             SteelSecondaryButton(
@@ -966,8 +989,8 @@ fun TrainingHistoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical)),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
                 HistoryTopBar(
@@ -1028,16 +1051,26 @@ fun TrainingHistoryScreen(
             } else {
                 filteredRows
                     .groupBy { it.monthLabel }
-                    .forEach { (monthLabel, rows) ->
+                    .forEach { (monthLabel, monthRows) ->
                         item(key = "month-$monthLabel") {
                             HistoryMonthDivider(label = monthLabel)
                         }
-                        items(rows, key = { it.sessionId }) { row ->
-                            HistoryListCard(
-                                preview = row,
-                                onClick = { onOpenDetail(row.sessionId) },
-                            )
-                        }
+                        monthRows
+                            .groupBy { it.dayKey }
+                            .forEach { (dayKey, dayRows) ->
+                                item(key = "day-$dayKey") {
+                                    HistoryDayDivider(
+                                        label = dayRows.first().dayLabel,
+                                        count = dayRows.size,
+                                    )
+                                }
+                                items(dayRows, key = { it.sessionId }) { row ->
+                                    HistoryListCard(
+                                        preview = row,
+                                        onClick = { onOpenDetail(row.sessionId) },
+                                    )
+                                }
+                            }
                     }
             }
 
@@ -1084,21 +1117,31 @@ fun TrainingHistoryDetailScreen(
                     SectionKicker(text = preview.title)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        MetricPlate(
-                            label = "总次数",
-                            value = preview.totalRepsLabel,
-                            modifier = Modifier.weight(1f),
-                            compact = true,
-                        )
-                        MetricPlate(
-                            label = "组数",
-                            value = preview.totalSetsLabel,
-                            modifier = Modifier.weight(1f),
-                            compact = true,
+                        Column {
+                            Text(
+                                text = "共${preview.totalSetsLabel}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "${preview.totalRepsLabel} 累计",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                        }
+                        Text(
+                            text = preview.totalRepsLabel.replace("次", ""),
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                                fontWeight = FontWeight.Black
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
                     HistoryDetailMetaBand(
                         startedAtLabel = preview.startedAtLabel,
                         endedAtLabel = preview.endedAtLabel,
@@ -1107,17 +1150,32 @@ fun TrainingHistoryDetailScreen(
                     )
                 }
 
-                DetailActionRow(
-                    canSave = preview.isSaveEnabled,
-                    onSave = onSave,
-                    onReuse = onReuse,
-                    onDelete = onDelete,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    SteelCompactButton(
+                        text = "保存修改",
+                        onClick = onSave,
+                        modifier = Modifier.weight(1f),
+                        enabled = preview.isSaveEnabled,
+                    )
+                    SteelCompactButton(
+                        text = "载入训练",
+                        onClick = onReuse,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SteelCompactButton(
+                        text = "删除记录",
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
 
                 SteelPanel(soft = true) {
                     SteelSectionHeader(
                         title = "分组详情",
-                        subtitle = "${preview.setDetails.size} 组",
+                        subtitle = "记录可点击修改次数",
                     )
                     preview.setDetails.forEachIndexed { index, detail ->
                         DetailSetBlock(
@@ -1125,7 +1183,10 @@ fun TrainingHistoryDetailScreen(
                             onValueChange = { onUpdateRep(index, it) },
                         )
                         if (index != preview.setDetails.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f))
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+                            )
                         }
                     }
                 }
@@ -1227,14 +1288,14 @@ private fun HistoryDetailMetaBand(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DetailMetaChip(
-                label = "开始",
-                value = startedAtLabel,
-                modifier = Modifier.weight(1f),
+                label = "时长",
+                value = durationLabel,
+                modifier = Modifier.weight(1.1f),
             )
             DetailMetaChip(
-                label = "结束",
-                value = endedAtLabel,
-                modifier = Modifier.weight(1f),
+                label = "休息预设",
+                value = restPresetLabel,
+                modifier = Modifier.weight(0.9f),
             )
         }
         Row(
@@ -1242,13 +1303,13 @@ private fun HistoryDetailMetaBand(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DetailMetaChip(
-                label = "用时",
-                value = durationLabel,
+                label = "开始时间",
+                value = startedAtLabel,
                 modifier = Modifier.weight(1f),
             )
             DetailMetaChip(
-                label = "休息预设",
-                value = restPresetLabel,
+                label = "结束时间",
+                value = endedAtLabel,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -1261,22 +1322,26 @@ private fun DetailMetaChip(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.34f))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f), CircleShape)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -1350,14 +1415,17 @@ private fun VoiceModeSelector(
     selectedMode: VoiceGuideMode,
     onSelect: (VoiceGuideMode) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         listOf(
-            VoiceGuideMode.Command to "起 / 落 / 停",
-            VoiceGuideMode.Counting to "按秒报数",
-            VoiceGuideMode.Breathing to "吸气 / 稳住 / 呼气",
+            VoiceGuideMode.Command to "指令",
+            VoiceGuideMode.Counting to "报数",
+            VoiceGuideMode.Breathing to "呼吸",
         ).forEach { (mode, label) ->
             TogglePill(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 selected = selectedMode == mode,
                 text = label,
                 onClick = { onSelect(mode) },
@@ -1514,36 +1582,36 @@ private fun SelectorDropdownField(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(14.dp))
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(14.dp),
             )
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.24f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.2f))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                 )
             }
             Text(
                 text = actionLabel,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.Bold,
             )
@@ -1557,23 +1625,40 @@ private fun SecondsSelector(
     selectedSeconds: Int,
     onSelect: (Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.chunked(3).forEach { rowOptions ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                rowOptions.forEach { seconds ->
-                    TogglePill(
-                        modifier = Modifier.weight(1f),
-                        selected = selectedSeconds == seconds,
-                        text = "${seconds}秒",
-                        onClick = { onSelect(seconds) },
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        options.forEach { seconds ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        width = 1.dp,
+                        color = if (selectedSeconds == seconds) {
+                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        },
+                        shape = RoundedCornerShape(12.dp),
                     )
-                }
-                repeat(3 - rowOptions.size) {
-                    Box(modifier = Modifier.weight(1f))
-                }
+                    .background(
+                        if (selectedSeconds == seconds) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.15f)
+                        },
+                    )
+                    .clickable { onSelect(seconds) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "${seconds}s",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
     }
@@ -1899,41 +1984,39 @@ private fun HistoryFilterBar(
         selectedStep != defaultStep,
         selectedMonth != defaultMonth,
     ).count { it }
-    val summaryLine = buildList {
-        if (selectedFamily != defaultFamily) add("六艺: $selectedFamily")
-        if (selectedStep != defaultStep) add("动作: $selectedStep")
-        if (selectedMonth != defaultMonth) add("月份: $selectedMonth")
-    }.joinToString("  ·  ").ifBlank { "当前显示全部训练记录" }
+    
     var expanded by remember { mutableStateOf(false) }
 
     SteelPanel(soft = true) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    SectionKicker(text = "筛选条件")
-                    Text(
-                        text = if (activeFilterCount == 0) "全部记录" else "已筛选 $activeFilterCount 项",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(
+                                if (activeFilterCount > 0) MaterialTheme.colorScheme.primary 
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                CircleShape
+                            )
                     )
                     Text(
-                        text = summaryLine,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        text = if (activeFilterCount == 0) "全部记录" else "筛选: $activeFilterCount 项",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Black,
                     )
                 }
-                TextButton(onClick = { expanded = !expanded }) {
-                    Text(if (expanded) "收起" else "展开筛选")
-                }
+                SteelCompactButton(
+                    text = if (expanded) "收起" else "筛选",
+                    onClick = { expanded = !expanded },
+                )
             }
 
             if (expanded) {
@@ -1943,7 +2026,7 @@ private fun HistoryFilterBar(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         HistoryDropdownSelector(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1.1f),
                             label = "六艺",
                             options = familyOptions,
                             selected = selectedFamily,
@@ -1953,7 +2036,7 @@ private fun HistoryFilterBar(
                             },
                         )
                         HistoryDropdownSelector(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(0.9f),
                             label = "月份",
                             options = monthOptions,
                             selected = selectedMonth,
@@ -1961,26 +2044,22 @@ private fun HistoryFilterBar(
                         )
                     }
                     HistoryDropdownSelector(
-                        label = "动作",
+                        label = "动作十式",
                         options = stepOptions,
                         selected = selectedStep,
                         onSelect = onSelectStep,
                     )
+                    
                     if (activeFilterCount > 0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    onSelectFamily(defaultFamily)
-                                    onSelectStep(defaultStep)
-                                    onSelectMonth(defaultMonth)
-                                },
-                            ) {
-                                Text("清空筛选")
-                            }
-                        }
+                        SteelSecondaryButton(
+                            text = "清除全部筛选",
+                            onClick = {
+                                onSelectFamily(defaultFamily)
+                                onSelectStep(defaultStep)
+                                onSelectMonth(defaultMonth)
+                            },
+                            modifier = Modifier.height(40.dp)
+                        )
                     }
                 }
             }
@@ -2035,24 +2114,56 @@ private fun HistoryMonthDivider(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 2.dp, bottom = 2.dp),
+            .padding(top = 12.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(18.dp)
+                .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(2.dp))
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.secondary,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.05.em
+        )
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+        )
+    }
+}
+
+@Composable
+private fun HistoryDayDivider(
+    label: String,
+    count: Int,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Bold,
         )
-        HorizontalDivider(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 10.dp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+        Text(
+            text = "$count 次训练",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
     }
 }
+
 
 @Composable
 private fun StandardsIllustrationItem(
@@ -2199,49 +2310,54 @@ private fun HistoryListCard(
             .clip(PrisonPanelShape)
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 shape = PrisonPanelShape,
             )
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
                         MaterialTheme.colorScheme.surface,
                     ),
                 ),
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = preview.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = preview.timeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
                 Text(
-                    text = preview.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = preview.dateLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
-                    textAlign = TextAlign.End,
+                    text = preview.totalRepsLabel,
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
 
             HistorySetBand(
-                setPreview = preview.setPreview,
-            )
-
-            Text(
-                text = "${preview.setCountLabel} · 总${preview.totalRepsLabel}次",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.secondary,
+                setCount = preview.setCountLabel,
+                setValues = preview.setPreview,
             )
         }
     }
@@ -2249,22 +2365,35 @@ private fun HistoryListCard(
 
 @Composable
 private fun HistorySetBand(
-    setPreview: String,
+    setCount: String,
+    setValues: String,
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.42f))
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = setPreview,
-            style = MaterialTheme.typography.titleMedium,
+            text = setCount,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary,
             fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = setValues,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 12.dp)
         )
     }
 }
+
 
 @Composable
 private fun DetailSetBlock(
@@ -2272,53 +2401,89 @@ private fun DetailSetBlock(
     onValueChange: (String) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.78f))
-                    .padding(horizontal = 10.dp, vertical = 9.dp),
-            ) {
+            Column(modifier = Modifier.width(64.dp)) {
                 Text(
-                    text = "第${detail.setIndex}组",
+                    text = "第 ${detail.setIndex} 组",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+                Text(
+                    text = detail.endedAtLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
             }
+
             OutlinedTextField(
                 value = detail.repValue,
                 onValueChange = onValueChange,
-                label = { Text("次数") },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                textStyle = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
-                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.1f),
+                ),
+                suffix = {
+                    Text(
+                        "次",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             )
+
+            Row(
+                modifier = Modifier.width(100.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                DetailSmallMeta(label = "用时", value = detail.durationLabel)
+                DetailSmallMeta(label = "休", value = detail.restAfterLabel.replace("休息 ", ""))
+            }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            DetailInlineMetaChip(
-                text = "时长 ${detail.durationLabel}",
-                modifier = Modifier.weight(1f),
-            )
-            DetailInlineMetaChip(
-                text = detail.restAfterLabel,
-                modifier = Modifier.weight(1f),
-            )
-            DetailInlineMetaChip(
-                text = "结束 ${detail.endedAtLabel}",
-                modifier = Modifier.weight(1f),
-            )
-        }
+    }
+}
+
+@Composable
+private fun DetailSmallMeta(
+    label: String,
+    value: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -2707,9 +2872,10 @@ fun buildHistoryPreview(
     latestExportLabel: String? = null,
     latestExportUri: String? = null,
 ): HistoryPreview = HistoryPreview(
-    rows = sessions.map { sessionWithSets ->
+    rows = sessions.sortedByDescending { it.session.sessionEndedAtUtcEpochMs }.map { sessionWithSets ->
         val family = ExerciseCatalog.families.firstOrNull { it.id == sessionWithSets.session.familyId }
         val step = family?.steps?.firstOrNull { it.level == sessionWithSets.session.stepLevel }
+        val endedAt = Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs)
         HistoryRowPreview(
             sessionId = sessionWithSets.session.sessionId,
             familyLabel = family?.titleZh ?: sessionWithSets.session.familyId,
@@ -2725,12 +2891,11 @@ fun buildHistoryPreview(
                 .sortedBy { it.setIndex }
                 .joinToString(separator = " + ") { set -> set.completedRepCount.toString() }
                 .ifBlank { "暂无分组明细" },
-            monthLabel = UiMonthFormatter.format(
-                Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs),
-            ),
-            dateLabel = UiTimeFormatter.format(
-                Instant.ofEpochMilli(sessionWithSets.session.sessionEndedAtUtcEpochMs),
-            ),
+            monthLabel = UiMonthFormatter.format(endedAt),
+            dayKey = UiDayKeyFormatter.format(endedAt),
+            dayLabel = UiDayFormatter.format(endedAt),
+            dateLabel = UiTimeFormatter.format(endedAt),
+            timeLabel = UiClockFormatter.format(endedAt),
         )
     },
     transferStatus = transferStatus,

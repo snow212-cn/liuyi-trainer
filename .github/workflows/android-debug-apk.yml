@@ -16,6 +16,7 @@ on:
     branches:
       - main
       - develop
+      - develop1
     tags:
       - "v*"
     paths:
@@ -91,6 +92,9 @@ jobs:
           requested_mode="${{ github.event.inputs.build_mode }}"
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             requested_mode="release"
+          fi
+          if [[ "${GITHUB_REF}" == refs/heads/develop1 ]]; then
+            requested_mode="debug"
           fi
           if [ -z "${requested_mode}" ]; then
             requested_mode="release"
@@ -210,6 +214,9 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             build_mode="release"
           fi
+          if [[ "${GITHUB_REF}" == refs/heads/develop1 ]]; then
+            build_mode="debug"
+          fi
           if [ -z "${build_mode}" ]; then
             build_mode="release"
           fi
@@ -264,7 +271,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish APK to Releases
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop1' || startsWith(github.ref, 'refs/tags/v'))
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.build_variant.outputs.release_tag }}
